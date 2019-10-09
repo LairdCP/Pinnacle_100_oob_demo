@@ -1,0 +1,14 @@
+identifier: pinnacle_100_dvk
+name: pinnacle_100_dvk
+type: mcu
+arch: arm
+toolchain:
+  - zephyr
+  - gnuarmemb
+  - xtools
+supported:
+  - adc
+  - usb_device
+  - ble
+  - ieee802154
+  - watchdog

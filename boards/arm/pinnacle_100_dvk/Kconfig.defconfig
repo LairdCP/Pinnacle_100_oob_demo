@@ -1,0 +1,73 @@
+# Kconfig - Pinnacle(TM) 100 DVK board configuration
+#
+# Copyright (c) 2019 Laird Connectivity
+#
+# SPDX-License-Identifier: Apache-2.0
+
+if BOARD_PINNACLE_100_DVK
+
+config BOARD
+	default "pinnacle_100_dvk"
+
+if ADC
+
+config ADC_0
+	default y
+
+endif # ADC
+
+if I2C
+
+config I2C_0
+	default y
+
+endif # I2C
+
+if SPI
+
+config SPI_0
+	default y
+
+endif # SPI
+
+if USB
+
+config USB_NRF52840
+	def_bool y
+
+config USB_DEVICE_STACK
+	def_bool y
+
+endif # USB
+
+if IEEE802154
+
+config IEEE802154_NRF5
+	default y
+
+endif # IEEE802154
+
+config BT_CTLR
+	default BT
+
+if FLASH && SPI
+
+config SPI_NOR
+	default y
+
+if SPI_NOR
+
+config SPI_NOR_CS_WAIT_DELAY
+	default 10
+
+config SPI_NOR_PAGE_SIZE
+	default 256
+
+config SPI_NOR_SECTOR_SIZE
+	default 4096
+
+endif # SPI_NOR
+
+endif # FLASH && SPI
+
+endif # BOARD_PINNACLE_100_DVK

@@ -1,0 +1,5 @@
+.vscode/.cortex-debug*
+.vscode/ipch/
+*.nul.old
+.west/
+build/
