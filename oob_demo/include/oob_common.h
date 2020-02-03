@@ -17,6 +17,9 @@
 
 #define RETRY_AWS_ACTION_TIMEOUT_SECONDS 30
 
+#define DEFAULT_LED_ON_TIME_FOR_1_SECOND_BLINK K_MSEC(100)
+#define DEFAULT_LED_OFF_TIME_FOR_1_SECOND_BLINK K_MSEC(900)
+
 enum SENSOR_TYPES {
 	SENSOR_TYPE_TEMPERATURE = 0,
 	SENSOR_TYPE_HUMIDITY,
@@ -38,3 +41,7 @@ enum APP_ERROR {
 };
 
 typedef void (*app_state_function_t)(void);
+
+void strncpy_replace_underscore_with_space(char *restrict s1,
+					   const char *restrict s2,
+					   size_t size);

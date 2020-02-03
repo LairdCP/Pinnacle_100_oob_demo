@@ -15,12 +15,22 @@
     },
     "tasks": [
         {
-            "label": "build",
+            "label": "re-build",
             "type": "shell",
             // Linux based command is not tested
             "command": "west build -b pinnacle_100_dvk -d build oob_demo -- -D BOARD_ROOT=${workspaceRoot}",
             "windows": {
                 "command": "west build -b pinnacle_100_dvk -d ${workspaceRoot}\\build ${workspaceRoot}\\oob_demo -- -D BOARD_ROOT=${workspaceRoot}"
+            },
+            "problemMatcher": [],
+        },
+        {
+            "label": "build",
+            "type": "shell",
+            // Linux based command is not tested
+            "command": "west build -b pinnacle_100_dvk -d build oob_demo -- -D BOARD_ROOT=${workspaceRoot}",
+            "windows": {
+                "command": "west build -b pinnacle_100_dvk -d ${workspaceRoot}\\build ${workspaceRoot}\\oob_demo"
             },
             "problemMatcher": [],
         },

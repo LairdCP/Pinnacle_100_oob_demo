@@ -106,7 +106,7 @@ Once the device is successfully connected to Amazon Web Services (AWS), the prov
 ![Device commissioned and connected to AWS](docs/images/provisioned_and_commissioned.png)<br>
 *Device commissioned and connected to AWS*
 
->**Note:** You can decommission a device if you no longer want it to connect to AWS. Just clicke **Decommission**
+>**Note:** You can decommission a device if you no longer want it to connect to AWS. Just click **Decommission**
 
 ![Device decommissioned](docs/images/decommissioned.png)<br>
 *Device decommissioned*
@@ -164,6 +164,15 @@ west build -b pinnacle_100_dvk -d pinnacle100\build pinnacle100\oob_demo -- -D B
 # Linux and macOS
 west build -b pinnacle_100_dvk -d pinnacle100/build pinnacle100/oob_demo -- -D BOARD_ROOT=$PWD/pinnacle100
 ```
+## LED behavior
+LED1 - LED4 are all on when the modem is booting.
+
+The Blue LED (LED1) will blink once a second when the Pinnacle is searching for a Bluetooth sensor.  When it finds a sensor and successfully connects to it, the LED will stay on.
+
+The Green LED (LED2) will turn on when connected to AWS.  When data is sent to AWS the LED will turn off for 1 second and then turn back on.  When disconnected from AWS the led will remain off.
+
+The Red LED (LED3) will blink when the Pinnacle is searching for a cellular network.  It will remain on and not blink when connected to a network.  If there is an error with the SIM card or network registration, then the led will remain off.
+
 
 ## BLE Profiles
 Details on the BLE profiles used to interface with the mobile app can be found [here](docs/ble.md)

@@ -19,6 +19,10 @@ LOG_MODULE_REGISTER(oob_ble);
 
 #include "oob_common.h"
 #include "oob_ble.h"
+#include "ble_cellular_service.h"
+#include "ble_sensor_service.h"
+#include "laird_utility_macros.h"
+#include "led.h"
 
 #define BLE_LOG_ERR(...) LOG_ERR(__VA_ARGS__)
 #define BLE_LOG_WRN(...) LOG_WRN(__VA_ARGS__)
@@ -38,16 +42,24 @@ enum ble_state {
 	BT_DEMO_APP_STATE_FINDING_HUMIDITY_CHAR,
 	/* Searching for ESS Pressure characteristic */
 	BT_DEMO_APP_STATE_FINDING_PRESSURE_CHAR,
+	/* All characteristics were found and subscribed to */
+	BT_DEMO_APP_STATE_CONNECTED_AND_CONFIGURED
 };
 
 #define BT_AD_ELEMENT_SHORTEND_LOCAL_NAME_ID 8
 #define BT_AD_ELEMENT_COMPLETE_LOCAL_NAME_ID 9
 #define BT_AD_SET_DATA_SIZE_MAX 31
 
+static const struct led_blink_pattern LED_SENSOR_SEARCH_PATTERN = {
+	.on_time = DEFAULT_LED_ON_TIME_FOR_1_SECOND_BLINK,
+	.off_time = DEFAULT_LED_OFF_TIME_FOR_1_SECOND_BLINK,
+	.repeat_count = REPEAT_INDEFINITELY
+};
+
 /* Function for starting BLE scan */
 static void bt_scan(void);
 
-/* This callback is triggered after recieving BLE adverts */
+/* This callback is triggered after receiving BLE adverts */
 static void device_found(const bt_addr_le_t *addr, s8_t rssi, u8_t type,
 			 struct net_buf_simple *ad);
 
@@ -86,6 +98,8 @@ static u8_t find_char(struct bt_conn *conn, struct bt_uuid_16 n_uuid);
 /* This function is used to discover descriptors in remote device */
 static u8_t find_desc(struct bt_conn *conn, struct bt_uuid_16 uuid,
 		      u16_t start_handle);
+
+static void set_ble_state(enum ble_state state);
 
 static const struct bt_data ad[] = {
 	BT_DATA_BYTES(BT_DATA_FLAGS, (BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR)),
@@ -148,7 +162,7 @@ static void bt_scan(void)
 	BLE_LOG_INF("Scanning for remote BLE devices started");
 }
 
-/* This callback is triggered after recieving BLE adverts */
+/* This callback is triggered after receiving BLE adverts */
 static void device_found(const bt_addr_le_t *addr, s8_t rssi, u8_t type,
 			 struct net_buf_simple *ad)
 {
@@ -209,8 +223,8 @@ static void device_found(const bt_addr_le_t *addr, s8_t rssi, u8_t type,
 						BLE_LOG_ERR(
 							"Failed to connect to remote BLE device %s",
 							log_strdup(bt_addr));
-						/* restart scanning */
-						bt_scan();
+						set_ble_state(
+							BT_DEMO_APP_STATE_FINDING_DEVICE);
 					}
 				}
 				break;
@@ -372,8 +386,8 @@ static u8_t desc_discover_func(struct bt_conn *conn,
 					conn, BT_HCI_ERR_REMOTE_USER_TERM_CONN);
 			} else {
 				/* everything looks good, update state to looking for humidity char */
-				remote_ble_sensor_params.app_state =
-					BT_DEMO_APP_STATE_FINDING_HUMIDITY_CHAR;
+				set_ble_state(
+					BT_DEMO_APP_STATE_FINDING_HUMIDITY_CHAR);
 			}
 		}
 	} else if (remote_ble_sensor_params.app_state ==
@@ -406,8 +420,8 @@ static u8_t desc_discover_func(struct bt_conn *conn,
 					conn, BT_HCI_ERR_REMOTE_USER_TERM_CONN);
 			} else {
 				/* everything looks good, update state to looking for pressure char */
-				remote_ble_sensor_params.app_state =
-					BT_DEMO_APP_STATE_FINDING_PRESSURE_CHAR;
+				set_ble_state(
+					BT_DEMO_APP_STATE_FINDING_PRESSURE_CHAR);
 			}
 		}
 	} else if (remote_ble_sensor_params.app_state ==
@@ -427,6 +441,8 @@ static u8_t desc_discover_func(struct bt_conn *conn,
 		} else {
 			BLE_LOG_INF(
 				"Notifications enabled for pressure characteristic");
+			set_ble_state(
+				BT_DEMO_APP_STATE_CONNECTED_AND_CONFIGURED);
 		}
 	}
 
@@ -514,8 +530,7 @@ static u8_t service_discover_func(struct bt_conn *conn,
 					   BT_HCI_ERR_REMOTE_USER_TERM_CONN);
 		} else {
 			/* Looking for temperature char, update state */
-			remote_ble_sensor_params.app_state =
-				BT_DEMO_APP_STATE_FINDING_TEMP_CHAR;
+			set_ble_state(BT_DEMO_APP_STATE_FINDING_TEMP_CHAR);
 		}
 	}
 
@@ -551,14 +566,14 @@ static void connected(struct bt_conn *conn, u8_t err)
 			goto fail;
 		}
 		/* Reaching here means all is good, update state */
-		remote_ble_sensor_params.app_state =
-			BT_DEMO_APP_STATE_FINDING_SERVICE;
+		set_ble_state(BT_DEMO_APP_STATE_FINDING_SERVICE);
+		bss_set_sensor_bt_addr(addr);
 
 	} else {
 		/* In this case a central device connected to us */
 		BLE_LOG_INF("Connected central: %s", log_strdup(addr));
 		central_conn = bt_conn_ref(conn);
-		/* stop advertising so another cental cannot connect */
+		/* stop advertising so another central cannot connect */
 		bt_le_adv_stop();
 #ifdef CONFIG_BT_SMP
 		if (bt_conn_security(conn, BT_SECURITY_MEDIUM)) {
@@ -575,11 +590,7 @@ fail:
 			    log_strdup(addr), err);
 		sensor_conn = NULL;
 		/* Set state to searching */
-		remote_ble_sensor_params.app_state =
-			BT_DEMO_APP_STATE_FINDING_DEVICE;
-
-		/* Restart scanning */
-		bt_scan();
+		set_ble_state(BT_DEMO_APP_STATE_FINDING_DEVICE);
 	} else {
 		BLE_LOG_ERR("Failed to connect to central %s (%u)",
 			    log_strdup(addr), err);
@@ -605,11 +616,7 @@ static void disconnected(struct bt_conn *conn, u8_t reason)
 		sensor_conn = NULL;
 
 		/* Set state to searching */
-		remote_ble_sensor_params.app_state =
-			BT_DEMO_APP_STATE_FINDING_DEVICE;
-
-		/* Restart scanning */
-		bt_scan();
+		set_ble_state(BT_DEMO_APP_STATE_FINDING_DEVICE);
 	} else {
 		BLE_LOG_INF("Disconnected central: %s (reason %u)",
 			    log_strdup(addr), reason);
@@ -638,6 +645,48 @@ static int zephyr_settings_fw_load(struct settings_store *cs,
 
 #endif
 	return 0;
+}
+
+static char *get_sensor_state_string(u8_t state)
+{
+	// clang-format off
+	switch (state) {
+		PREFIXED_SWITCH_CASE_RETURN_STRING(BT_DEMO_APP_STATE, FINDING_DEVICE);
+		PREFIXED_SWITCH_CASE_RETURN_STRING(BT_DEMO_APP_STATE, FINDING_SERVICE);
+		PREFIXED_SWITCH_CASE_RETURN_STRING(BT_DEMO_APP_STATE, FINDING_TEMP_CHAR);
+		PREFIXED_SWITCH_CASE_RETURN_STRING(BT_DEMO_APP_STATE, FINDING_HUMIDITY_CHAR);
+		PREFIXED_SWITCH_CASE_RETURN_STRING(BT_DEMO_APP_STATE, FINDING_PRESSURE_CHAR);
+		PREFIXED_SWITCH_CASE_RETURN_STRING(BT_DEMO_APP_STATE, CONNECTED_AND_CONFIGURED);
+	default:
+		return "UNKNOWN";
+	}
+	// clang-format on
+}
+
+static void set_ble_state(enum ble_state state)
+{
+	remote_ble_sensor_params.app_state = state;
+	bss_set_sensor_state(get_sensor_state_string(state));
+
+	switch (state) {
+	case BT_DEMO_APP_STATE_CONNECTED_AND_CONFIGURED:
+		led_turn_on(BLUE_LED1);
+		break;
+
+	case BT_DEMO_APP_STATE_FINDING_DEVICE:
+		led_blink(BLUE_LED1, &LED_SENSOR_SEARCH_PATTERN);
+		bss_set_sensor_bt_addr(NULL);
+		bt_scan();
+		break;
+
+	case BT_DEMO_APP_STATE_FINDING_SERVICE:
+	case BT_DEMO_APP_STATE_FINDING_TEMP_CHAR:
+	case BT_DEMO_APP_STATE_FINDING_HUMIDITY_CHAR:
+	case BT_DEMO_APP_STATE_FINDING_PRESSURE_CHAR:
+	default:
+		// Nothing needs to be done for these states.
+		break;
+	}
 }
 
 int settings_backend_init(void)
@@ -685,10 +734,7 @@ void oob_ble_initialise(const char *imei)
 	}
 
 	/* Initialize the state to 'looking for device' */
-	remote_ble_sensor_params.app_state = BT_DEMO_APP_STATE_FINDING_DEVICE;
-
-	/* Start scanning for Bluetooth devices */
-	bt_scan();
+	set_ble_state(BT_DEMO_APP_STATE_FINDING_DEVICE);
 }
 
 /* Function for setting the sensor read callback function */

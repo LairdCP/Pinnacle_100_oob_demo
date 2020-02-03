@@ -18,6 +18,9 @@ LOG_MODULE_REGISTER(oob_lte);
 
 #include <modem_receiver.h>
 #include <drivers/modem/hl7800.h>
+#include "ble_cellular_service.h"
+#include "led.h"
+#include "oob_common.h"
 
 #include "lte.h"
 
@@ -38,6 +41,12 @@ static struct mdm_receiver_context *mdm_rcvr;
 static struct dns_resolve_context *dns;
 static struct lte_status lteStatus;
 static lte_event_function_t lteCallbackFunction = NULL;
+
+static const struct led_blink_pattern NETWORK_SEARCH_LED_PATTERN = {
+	.on_time = DEFAULT_LED_ON_TIME_FOR_1_SECOND_BLINK,
+	.off_time = DEFAULT_LED_OFF_TIME_FOR_1_SECOND_BLINK,
+	.repeat_count = REPEAT_INDEFINITELY
+};
 
 static void onLteEvent(enum lte_event event)
 {
@@ -72,7 +81,7 @@ static struct mgmt_events iface_events[] = {
 	{ .event = NET_EVENT_DNS_SERVER_ADD,
 	  .handler = iface_ready_evt_handler },
 	{ .event = NET_EVENT_IF_DOWN, .handler = iface_down_evt_handler },
-	{ 0 }
+	{ 0 } // The for loop below requires this extra location.
 };
 
 static void setup_iface_events(void)
@@ -88,6 +97,73 @@ static void setup_iface_events(void)
 	}
 }
 
+static void modemEventCallback(enum mdm_hl7800_event event, void *event_data)
+{
+	switch (event) {
+	case HL7800_EVENT_NETWORK_STATE_CHANGE:
+		cell_svc_set_network_state(
+			((struct mdm_hl7800_compound_event *)event_data)->string);
+		switch (((struct mdm_hl7800_compound_event *)event_data)->code) {
+		case HL7800_HOME_NETWORK:
+			led_turn_on(RED_LED3);
+			break;
+
+		case HL7800_REGISTRATION_DENIED:
+			led_turn_off(RED_LED3);
+			break;
+
+		case HL7800_NOT_REGISTERED:
+		case HL7800_OUT_OF_COVERAGE:
+		case HL7800_SEARCHING:
+			led_blink(RED_LED3, &NETWORK_SEARCH_LED_PATTERN);
+			break;
+
+		case HL7800_EMERGENCY:
+		case HL7800_ROAMING:
+		default:
+			// Don't do anything.
+			break;
+		}
+		break;
+
+	case HL7800_EVENT_APN_UPDATE:
+		cell_svc_set_apn((struct mdm_hl7800_apn *)event_data);
+		break;
+
+	case HL7800_EVENT_RSSI:
+		cell_svc_set_rssi(*((int *)event_data));
+		break;
+
+	case HL7800_EVENT_SINR:
+		cell_svc_set_sinr(*((int *)event_data));
+		break;
+
+	case HL7800_EVENT_STARTUP_STATE_CHANGE:
+		cell_svc_set_startup_state(
+			((struct mdm_hl7800_compound_event *)event_data)->string);
+		switch (((struct mdm_hl7800_compound_event *)event_data)->code) {
+		case HL7800_STARTUP_STATE_READY:
+		case HL7800_STARTUP_STATE_WAITING_FOR_ACCESS_CODE:
+			// don't do anything
+			break;
+
+		case HL7800_STARTUP_STATE_SIM_NOT_PRESENT:
+		case HL7800_STARTUP_STATE_SIMLOCK:
+		case HL7800_STARTUP_STATE_UNRECOVERABLE_ERROR:
+		case HL7800_STARTUP_STATE_UNKNOWN:
+		case HL7800_STARTUP_STATE_INACTIVE_SIM:
+		default:
+			led_turn_off(RED_LED3);
+			break;
+		}
+		break;
+
+	default:
+		LOG_ERR("Unknown modem event");
+		break;
+	}
+}
+
 void lteRegisterEventCallback(lte_event_function_t callback)
 {
 	lteCallbackFunction = callback;
@@ -96,6 +172,7 @@ void lteRegisterEventCallback(lte_event_function_t callback)
 int lteInit(void)
 {
 	int rc = LTE_ERR_NONE;
+	mdm_hl7800_register_event_callback(modemEventCallback);
 	setup_iface_events();
 
 	/* wait for network interface to be ready */
@@ -132,6 +209,7 @@ int lteInit(void)
 	lteStatus.IMEI = mdm_rcvr->data_imei;
 	lteStatus.ICCID = (const char *)mdm_hl7800_get_iccid();
 	lteStatus.serialNumber = (const char *)mdm_hl7800_get_sn();
+	mdm_hl7800_generate_status_events();
 
 exit:
 	return rc;

@@ -26,6 +26,7 @@ LOG_MODULE_REGISTER(oob_main);
 #include "nv.h"
 #include "ble_cellular_service.h"
 #include "ble_aws_service.h"
+#include "ble_sensor_service.h"
 
 #define MAIN_LOG_ERR(...) LOG_ERR(__VA_ARGS__)
 #define MAIN_LOG_WRN(...) LOG_WRN(__VA_ARGS__)
@@ -35,13 +36,15 @@ LOG_MODULE_REGISTER(oob_main);
 /* This is a callback function which is called when the send data timer has expired */
 static void SendDataTimerExpired(struct k_timer *dummy);
 
-static void appStateAwsSendSenorData(void);
+static void appStateAwsSendSensorData(void);
 static void appStateAwsInitShadow(void);
 static void appStateAwsConnect(void);
 static void appStateAwsDisconnect(void);
 static void appStateAwsResolveServer(void);
 static void appStateWaitForLte(void);
 static void appStateCommissionDevice(void);
+
+static void setAwsStatusWrapper(struct bt_conn *conn, enum aws_status status);
 
 K_TIMER_DEFINE(SendDataTimer, SendDataTimerExpired, NULL);
 K_SEM_DEFINE(send_data_sem, 0, 1);
@@ -68,6 +71,15 @@ static bool devKeySet;
 
 static app_state_function_t appState;
 struct lte_status *lteInfo;
+
+/* Turn the LED off for 1 second when data is sent.
+ * This pattern assumes LED is already on an will be turned back on by the 
+ * pattern complete callback.
+ */
+static const struct led_blink_pattern LED_BLIP_PATTERN = { .on_time = K_MSEC(1),
+							   .off_time =
+								   K_SECONDS(1),
+							   .repeat_count = 1 };
 
 static void startSendDataTimer(void)
 {
@@ -125,21 +137,16 @@ static void lteEvent(enum lte_event event)
 	switch (event) {
 	case LTE_EVT_READY:
 		k_sem_give(&lte_ready_sem);
-		cell_svc_set_status(oob_ble_get_central_connection(),
-				    CELL_STATUS_CONNECTED);
 		break;
 	case LTE_EVT_DISCONNECTED:
 		/* No need to trigger a reconnect.
 		*  If next sensor data TX fails we will reconnect. 
 		*/
-		cell_svc_set_status(oob_ble_get_central_connection(),
-				    CELL_STATUS_DISCONNECTED);
-
 		break;
 	}
 }
 
-static void appStateAwsSendSenorData(void)
+static void appStateAwsSendSensorData(void)
 {
 	int rc = 0;
 
@@ -163,11 +170,10 @@ static void appStateAwsSendSenorData(void)
 				  lteInfo->sinr);
 	if (rc != 0) {
 		MAIN_LOG_ERR("Could not send sensor data (%d)", rc);
-		led_flash_red();
 		appState = appStateAwsDisconnect;
 	} else {
 		MAIN_LOG_INF("Data sent");
-		led_flash_green();
+		led_blink(GREEN_LED2, &LED_BLIP_PATTERN);
 	}
 
 	k_mutex_unlock(&sensor_data_lock);
@@ -198,7 +204,7 @@ static void appStateAwsInitShadow(void)
 	*  we want to send the first sensor data ASAP after the shadow is inited
 	*/
 	sendSensorDataAsap = true;
-	appState = appStateAwsSendSenorData;
+	appState = appStateAwsSendSensorData;
 exit:
 	return;
 }
@@ -215,8 +221,8 @@ static void appStateAwsConnect(void)
 	if (awsConnect() != 0) {
 		MAIN_LOG_ERR("Could not connect to aws, retrying in %d seconds",
 			     RETRY_AWS_ACTION_TIMEOUT_SECONDS);
-		aws_svc_set_status(oob_ble_get_central_connection(),
-				   AWS_STATUS_CONNECTION_ERR);
+		setAwsStatusWrapper(oob_ble_get_central_connection(),
+				    AWS_STATUS_CONNECTION_ERR);
 		/* wait some time before trying again */
 		k_sleep(K_SECONDS(RETRY_AWS_ACTION_TIMEOUT_SECONDS));
 		return;
@@ -226,8 +232,8 @@ static void appStateAwsConnect(void)
 	commissioned = true;
 	allowCommissioning = false;
 
-	aws_svc_set_status(oob_ble_get_central_connection(),
-			   AWS_STATUS_CONNECTED);
+	setAwsStatusWrapper(oob_ble_get_central_connection(),
+			    AWS_STATUS_CONNECTED);
 
 	if (initShadow) {
 		/* Init the shadow once, the first time we connect */
@@ -235,20 +241,20 @@ static void appStateAwsConnect(void)
 	} else {
 		/* after a connection we want to send the first sensor data ASAP */
 		sendSensorDataAsap = true;
-		appState = appStateAwsSendSenorData;
+		appState = appStateAwsSendSensorData;
 	}
 }
 
 static bool areCertsSet(void)
 {
-    return (devCertSet && devKeySet);
+	return (devCertSet && devKeySet);
 }
 
 static void appStateAwsDisconnect(void)
 {
 	MAIN_LOG_DBG("AWS disconnect state");
-	aws_svc_set_status(oob_ble_get_central_connection(),
-			   AWS_STATUS_DISCONNECTED);
+	setAwsStatusWrapper(oob_ble_get_central_connection(),
+			    AWS_STATUS_DISCONNECTED);
 	stopSendDataTimer();
 	awsDisconnect();
 	if (areCertsSet()) {
@@ -283,16 +289,13 @@ static void appStateWaitForLte(void)
 {
 	MAIN_LOG_DBG("Wait for LTE state");
 
-	aws_svc_set_status(oob_ble_get_central_connection(),
-			   AWS_STATUS_DISCONNECTED);
+	setAwsStatusWrapper(oob_ble_get_central_connection(),
+			    AWS_STATUS_DISCONNECTED);
 
 	if (!lteIsReady()) {
 		/* Wait for LTE read evt */
 		k_sem_reset(&lte_ready_sem);
 		k_sem_take(&lte_ready_sem, K_FOREVER);
-	} else {
-		cell_svc_set_status(oob_ble_get_central_connection(),
-				    CELL_STATUS_CONNECTED);
 	}
 
 	if (resolveAwsServer && areCertsSet()) {
@@ -326,8 +329,8 @@ static void appStateCommissionDevice(void)
 {
 	MAIN_LOG_DBG("Commission device state");
 	printk("\n\nWaiting to commission device\n\n");
-	aws_svc_set_status(oob_ble_get_central_connection(),
-			   AWS_STATUS_NOT_PROVISIONED);
+	setAwsStatusWrapper(oob_ble_get_central_connection(),
+			    AWS_STATUS_NOT_PROVISIONED);
 	allowCommissioning = true;
 
 	k_sem_take(&rx_cert_sem, K_FOREVER);
@@ -355,7 +358,7 @@ char *replaceWord(const char *s, const char *oldW, const char *newW, char *dest,
 		}
 	}
 
-	/* Make sure new string isnt too big */
+	/* Make sure new string isn't too big */
 	if ((i + cnt * (newWlen - oldWlen) + 1) > destSize) {
 		return NULL;
 	}
@@ -400,6 +403,27 @@ static void awsSvcEvent(enum aws_svc_event event)
 	case AWS_SVC_EVENT_SETTINGS_CLEARED:
 		decommission();
 		break;
+	}
+}
+
+/* When data is sent the LED is turned off for 1 second and then turned back
+ * on.
+ */
+static void ledPatternCompleteCallback(void)
+{
+	led_turn_on(GREEN_LED2);
+}
+
+static void setAwsStatusWrapper(struct bt_conn *conn, enum aws_status status)
+{
+	aws_svc_set_status(conn, status);
+
+	if (status == AWS_STATUS_CONNECTED) {
+		if (!led_pattern_busy(GREEN_LED2)) {
+			led_turn_on(GREEN_LED2);
+		}
+	} else {
+		led_turn_off(GREEN_LED2);
 	}
 }
 
@@ -524,10 +548,14 @@ void main(void)
 	if (rc != 0) {
 		goto exit;
 	}
+	led_register_pattern_complete_function(GREEN_LED2,
+					       ledPatternCompleteCallback);
 
 	/* Start up BLE portion of the demo */
 	cell_svc_set_imei(lteInfo->IMEI);
 	cell_svc_set_fw_ver(lteInfo->radio_version);
+	cell_svc_assign_connection_handler_getter(oob_ble_get_central_connection);
+	bss_assign_connection_handler_getter(oob_ble_get_central_connection);
 	rc = aws_svc_init(lteInfo->IMEI);
 	if (rc != 0) {
 		goto exit;
@@ -541,7 +569,7 @@ void main(void)
 	}
 	oob_ble_initialise(lteInfo->IMEI);
 	oob_ble_set_callback(SensorUpdated);
-
+	
 	appReady = true;
 	printk("\n!!!!!!!! App is ready! !!!!!!!!\n");
 
@@ -571,4 +599,22 @@ SHELL_STATIC_SUBCMD_SET_CREATE(oob_cmds,
 			       SHELL_SUBCMD_SET_END /* Array terminated. */
 );
 SHELL_CMD_REGISTER(oob, &oob_cmds, "OOB Demo commands", NULL);
+
+static int shell_send_at_cmd(const struct shell *shell, size_t argc,
+			     char **argv)
+{
+	if ((argc == 2) && (argv[1] != NULL)) {
+		int result = mdm_hl7800_send_at_cmd(argv[1]);
+		if (result < 0) {
+			shell_error(shell, "Command not accepted");
+		}
+	} else {
+		shell_error(shell, "Invalid parameter");
+		return -EINVAL;
+	}
+	return 0;
+}
+
+SHELL_CMD_REGISTER(at, NULL, "Send an AT command string to the HL7800",
+		   shell_send_at_cmd);
 #endif /* CONFIG_SHELL */

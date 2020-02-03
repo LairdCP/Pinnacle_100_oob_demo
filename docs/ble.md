@@ -36,9 +36,22 @@ Characteristics:
 
 | Name    | UUID  | Properties | Description |
 | ------- | ----- | ---------- | ----------- |
-| IMEI | 43787c61-9e84-4eb1-a669-70b6404da336 | read | 15 digit ASCII string representing the IMEI |
-| APN | 43787c62-9e84-4eb1-a669-70b6404da336 | read/write | ASCII string representing the APN (63 characters max) |
-| APN Username | 43787c63-9e84-4eb1-a669-70b6404da336 | read/write | ASCII string representing the APN username (24 characters max) |
-| APN Password | 43787c64-9e84-4eb1-a669-70b6404da336 | read/write | ASCII string representing the APN password (24 characters max) |
-| Status | 43787c65-9e84-4eb1-a669-70b6404da336 | read/notify | One byte representing the current status of cellular radio: 0 - Not connected, 1 - connected to a network |
+| IMEI | 43787c61-9e84-4eb1-a669-70b6404da336 | read | 15-digit ASCII string representing the IMEI |
+| APN | 43787c62-9e84-4eb1-a669-70b6404da336 | read/write/notify | ASCII string representing the APN (63 characters max).  Use an empty string if the APN isn't required. |
+| APN Username | 43787c63-9e84-4eb1-a669-70b6404da336 | read/write/notify | ASCII string representing the APN username (64 characters max).  This value isn't updated in modem until password is written.  Use an empty string if the username isn't required. |
+| APN Password | 43787c64-9e84-4eb1-a669-70b6404da336 | read/write/notify | ASCII string representing the APN password (64 characters max). Use an empty string if the password isn't required. |
+| Network State | 43787c65-9e84-4eb1-a669-70b6404da336 | read/notify | String representing network state (registered, searching, found, ...) |
 | Firmware Version | 43787c66-9e84-4eb1-a669-70b6404da336 | read | Firmware version of the LTE modem |
+| Startup State | 43787c67-9e84-4eb1-a669-70b6404da336 | read/notify | String representation of modem initialization state. |
+| RSSI | 43787c68-9e84-4eb1-a669-70b6404da336 | read/notify | signed 32-bit integer | Reference Signals Receive Power (RSRP) in dBm |
+| SINR | 43787c69-9e84-4eb1-a669-70b6404da336 | read/notify | signed 32-bit integer | Signal to Interference plus Noise Ratio (SINR) in dBm |
+
+## Sensor Profile
+### UUID: ab010000-5bab-471a-9074-a0ae3937c70c
+
+Characteristics:
+
+| Name    | UUID  | Properties | Description |
+| Sensor State | ab010001-5bab-471a-9074-a0ae3937c70c| read/notify | String representation of OOB sensor state (finding device, ..., connected) |
+| Sensor Bluetooth Address | ab010002-5bab-471a-9074-a0ae3937c70c | read/notify | String representation of address of connected sensor. |
+
