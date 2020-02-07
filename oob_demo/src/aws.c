@@ -487,3 +487,8 @@ int awsPublishSensorData(float temperature, float humidity, int pressure,
 		 SHADOW_REPORTED_END);
 	return awsSendData(msg);
 }
+
+bool awsConnected(void)
+{
+	return connected;
+}

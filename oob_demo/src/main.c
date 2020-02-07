@@ -43,6 +43,7 @@ static void appStateAwsDisconnect(void);
 static void appStateAwsResolveServer(void);
 static void appStateWaitForLte(void);
 static void appStateCommissionDevice(void);
+static void appStateWaitForSensorData(void);
 
 static void setAwsStatusWrapper(struct bt_conn *conn, enum aws_status status);
 
@@ -96,8 +97,7 @@ static void stopSendDataTimer(void)
 /* This is a callback function which is called when the send data timer has expired */
 static void SendDataTimerExpired(struct k_timer *dummy)
 {
-	if (bUpdatedTemperature == true && bUpdatedHumidity == true &&
-	    bUpdatedPressure == true) {
+	if (bUpdatedTemperature && bUpdatedHumidity && bUpdatedPressure) {
 		bUpdatedTemperature = false;
 		bUpdatedHumidity = false;
 		bUpdatedPressure = false;
@@ -152,31 +152,40 @@ static void appStateAwsSendSensorData(void)
 
 	MAIN_LOG_DBG("AWS send sensor data state");
 
-	k_sem_take(&send_data_sem, K_FOREVER);
-
-	if (!commissioned) {
-		/* we were decommissioned, disconnect */
+	/* If decommissioned then disconnect.
+	 * If disconnected then still go through the disconnect state so that the send
+	 * data timer is disabled.
+	 */
+	if (!commissioned || !awsConnected()) {
 		appState = appStateAwsDisconnect;
+		return;
 	}
 
-	lteInfo = lteGetStatus();
+	setAwsStatusWrapper(oob_ble_get_central_connection(),
+			    AWS_STATUS_CONNECTED);
 
-	k_mutex_lock(&sensor_data_lock, K_FOREVER);
-	MAIN_LOG_INF("Sending Sensor data t:%d, h:%d, p:%d...",
-		     (int)(temperatureReading * 100),
-		     (int)(humidityReading * 100), pressureReading);
-	rc = awsPublishSensorData(temperatureReading, humidityReading,
-				  pressureReading, lteInfo->rssi,
-				  lteInfo->sinr);
-	if (rc != 0) {
-		MAIN_LOG_ERR("Could not send sensor data (%d)", rc);
-		appState = appStateAwsDisconnect;
-	} else {
-		MAIN_LOG_INF("Data sent");
-		led_blink(GREEN_LED2, &LED_BLIP_PATTERN);
+	int take =
+		k_sem_take(&send_data_sem, K_SECONDS(DATA_SEND_TIME_SECONDS));
+	if (take == 0) {
+		lteInfo = lteGetStatus();
+
+		k_mutex_lock(&sensor_data_lock, K_FOREVER);
+		MAIN_LOG_INF("Sending Sensor data t:%d, h:%d, p:%d...",
+			     (int)(temperatureReading * 100),
+			     (int)(humidityReading * 100), pressureReading);
+		rc = awsPublishSensorData(temperatureReading, humidityReading,
+					  pressureReading, lteInfo->rssi,
+					  lteInfo->sinr);
+		if (rc != 0) {
+			MAIN_LOG_ERR("Could not send sensor data (%d)", rc);
+			appState = appStateAwsDisconnect;
+		} else {
+			MAIN_LOG_INF("Data sent");
+			led_blink(GREEN_LED2, &LED_BLIP_PATTERN);
+		}
+
+		k_mutex_unlock(&sensor_data_lock);
 	}
-
-	k_mutex_unlock(&sensor_data_lock);
 }
 
 static void appStateAwsInitShadow(void)
@@ -233,7 +242,7 @@ static void appStateAwsConnect(void)
 	allowCommissioning = false;
 
 	setAwsStatusWrapper(oob_ble_get_central_connection(),
-			    AWS_STATUS_CONNECTED);
+			    AWS_STATUS_CONNECTING);
 
 	if (initShadow) {
 		/* Init the shadow once, the first time we connect */
@@ -257,6 +266,19 @@ static void appStateAwsDisconnect(void)
 			    AWS_STATUS_DISCONNECTED);
 	stopSendDataTimer();
 	awsDisconnect();
+	appState = appStateWaitForSensorData;
+}
+
+/* On startup there is configuration data to send to AWS.
+ * However, if there isn't sensor data to send then the connection will be
+ * closed.  Wait for sensor data before re-opening connection.
+ */
+static void appStateWaitForSensorData(void)
+{
+	MAIN_LOG_DBG("AWS Wait For Sensor Data state");
+
+	k_sem_take(&send_data_sem, K_FOREVER);
+
 	if (areCertsSet()) {
 		appState = appStateAwsConnect;
 	} else {
@@ -388,8 +410,6 @@ static void decommission(void)
 	allowCommissioning = true;
 	appState = appStateAwsDisconnect;
 	printk("Device is decommissioned\n");
-	/* trigger send data in case we are waiting in that state */
-	k_sem_give(&send_data_sem);
 }
 
 static void awsSvcEvent(enum aws_svc_event event)

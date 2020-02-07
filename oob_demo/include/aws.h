@@ -113,6 +113,7 @@ void awsSetEndpoint(const char *ep);
 void awsSetClientId(const char *id);
 int awsGetServerAddr(void);
 int awsConnect();
+bool awsConnected(void);
 void awsDisconnect(void);
 int awsKeepAlive(void);
 int awsSendData(char *data);

@@ -109,6 +109,7 @@ static void modemEventCallback(enum mdm_hl7800_event event, void *event_data)
 			break;
 
 		case HL7800_REGISTRATION_DENIED:
+		case HL7800_UNABLE_TO_CONFIGURE:
 			led_turn_off(RED_LED3);
 			break;
 
