@@ -319,8 +319,8 @@ static void status_cfg_changed(const struct bt_gatt_attr *attr, u16_t value)
 
 /* AWS Service Declaration */
 #define AWS_SVC_STATUS_ATT_INDEX 14
-BT_GATT_SERVICE_DEFINE(
-	aws_svc, BT_GATT_PRIMARY_SERVICE(&aws_svc_uuid),
+static struct bt_gatt_attr aws_attrs[] = {
+	BT_GATT_PRIMARY_SERVICE(&aws_svc_uuid),
 	BT_GATT_CHARACTERISTIC(&aws_cliend_id_uuid.uuid,
 			       BT_GATT_CHRC_READ | BT_GATT_CHRC_WRITE,
 			       BT_GATT_PERM_READ | BT_GATT_PERM_WRITE,
@@ -347,11 +347,13 @@ BT_GATT_SERVICE_DEFINE(
 	BT_GATT_CHARACTERISTIC(&aws_save_clear_uuid.uuid, BT_GATT_CHRC_WRITE,
 			       BT_GATT_PERM_WRITE, NULL, write_save_clear,
 			       &save_clear_value),
-	BT_GATT_CHARACTERISTIC(&aws_status_uuid.uuid,
-			       BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY,
-			       BT_GATT_PERM_READ, read_status, NULL,
-			       &status_value),
-	BT_GATT_CCC(status_ccc_cfg, status_cfg_changed), );
+	BT_GATT_CHARACTERISTIC(
+		&aws_status_uuid.uuid, BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY,
+		BT_GATT_PERM_READ, read_status, NULL, &status_value),
+	BT_GATT_CCC(status_ccc_cfg, status_cfg_changed),
+};
+
+static struct bt_gatt_service aws_svc = BT_GATT_SERVICE(aws_attrs);
 
 void aws_svc_set_client_id(const char *id)
 {
@@ -459,6 +461,8 @@ int aws_svc_init(const char *clientId)
 	if (rc > 0) {
 		isClientKeyStored = true;
 	}
+
+	bt_gatt_service_register(&aws_svc);
 
 	return AWS_SVC_ERR_NONE;
 }

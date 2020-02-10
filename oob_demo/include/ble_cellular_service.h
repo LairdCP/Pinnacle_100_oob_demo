@@ -26,6 +26,7 @@
  */
 void cell_svc_assign_connection_handler_getter(struct bt_conn *(*function)(void));
 
+void cell_svc_init();
 void cell_svc_set_imei(const char *imei);
 void cell_svc_set_network_state(char *state);
 void cell_svc_set_startup_state(char *state);

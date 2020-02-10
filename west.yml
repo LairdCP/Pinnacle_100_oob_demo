@@ -15,10 +15,11 @@
 # information.
 
 manifest:
-
   remotes:
     - name: LairdCP
       url-base: https://github.com/LairdCP
+    - name: LairdInternal
+      url-base: git@git.devops.rfpros.com:/cp_cellular
     - name: zephyrproject
       url-base: https://github.com/zephyrproject-rtos
 
@@ -26,15 +27,16 @@ manifest:
   # Many of these dependencies we taken from the default Zephyr west manifest.
   # These dependencies may need updating if new features are added to the firmware.
   projects:
-    - name: mbedtls
-      revision: ca32746072ce3381f1c9ae46ba6cd34c69f8c0ee
-      path: modules/crypto/mbedtls
-      remote: zephyrproject
     - name: zephyr
-      repo-path: zephyr
+      repo-path: zephyr.git
       west-commands: scripts/west-commands.yml
-      revision: 162cf0dbe93c7be1f778f1876b6987a125ab3811
-      remote: LairdCP
+      revision: laird/hl7800
+      remote: LairdInternal
+    - name: lairdconnectivityhal
+      repo-path: zephyr-hal-lairdconnectivity.git
+      path: zephyr/ext/hal/lairdconnectivity
+      revision: 1c357f06c6f79515930743e94a94855dd997c679
+      remote: LairdInternal
 
   self:
-    path: pinnacle100
+    path: oob_demo

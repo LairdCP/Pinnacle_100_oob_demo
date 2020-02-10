@@ -554,8 +554,13 @@ void main(void)
 	/* Start up BLE portion of the demo */
 	cell_svc_set_imei(lteInfo->IMEI);
 	cell_svc_set_fw_ver(lteInfo->radio_version);
-	cell_svc_assign_connection_handler_getter(oob_ble_get_central_connection);
+	cell_svc_assign_connection_handler_getter(
+		oob_ble_get_central_connection);
+	cell_svc_init();
+
 	bss_assign_connection_handler_getter(oob_ble_get_central_connection);
+	bss_init();
+
 	rc = aws_svc_init(lteInfo->IMEI);
 	if (rc != 0) {
 		goto exit;
@@ -567,9 +572,10 @@ void main(void)
 	} else {
 		aws_svc_set_status(NULL, AWS_STATUS_NOT_PROVISIONED);
 	}
+
 	oob_ble_initialise(lteInfo->IMEI);
 	oob_ble_set_callback(SensorUpdated);
-	
+
 	appReady = true;
 	printk("\n!!!!!!!! App is ready! !!!!!!!!\n");
 

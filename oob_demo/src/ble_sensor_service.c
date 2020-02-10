@@ -72,8 +72,8 @@ static void sensor_bt_addr_ccc_handler(const struct bt_gatt_attr *attr,
 #define SENSOR_STATE_INDEX 3
 #define SENSOR_BT_ADDR_INDEX 6
 
-BT_GATT_SERVICE_DEFINE(
-	sensor_service, BT_GATT_PRIMARY_SERVICE(&BSS_UUID),
+static struct bt_gatt_attr sensor_attrs[] = {
+	BT_GATT_PRIMARY_SERVICE(&BSS_UUID),
 	BT_GATT_CHARACTERISTIC(&SENSOR_STATE_UUID.uuid,
 			       BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY,
 			       BT_GATT_PERM_READ, read_sensor_state, NULL,
@@ -83,7 +83,10 @@ BT_GATT_SERVICE_DEFINE(
 			       BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY,
 			       BT_GATT_PERM_READ, read_sensor_bt_addr, NULL,
 			       bss.sensor_bt_addr),
-	LBT_GATT_CCC(sensor_bt_addr));
+	LBT_GATT_CCC(sensor_bt_addr)
+};
+
+static struct bt_gatt_service sensor_service = BT_GATT_SERVICE(sensor_attrs);
 
 static void bss_notify(bool notify, u16_t index, u16_t length)
 {
@@ -124,4 +127,9 @@ void bss_set_sensor_bt_addr(char *addr)
 	}
 	bss_notify(ccc.sensor_bt_addr.notify, SENSOR_BT_ADDR_INDEX,
 		   strlen(bss.sensor_bt_addr));
+}
+
+void bss_init()
+{
+	bt_gatt_service_register(&sensor_service);
 }

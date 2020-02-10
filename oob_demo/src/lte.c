@@ -16,7 +16,7 @@ LOG_MODULE_REGISTER(oob_lte);
 #include <net/net_mgmt.h>
 #include <net/socket.h>
 
-#include <modem_receiver.h>
+#include <drivers/modem/modem_receiver.h>
 #include <drivers/modem/hl7800.h>
 #include "ble_cellular_service.h"
 #include "led.h"

@@ -11,8 +11,8 @@ LOG_MODULE_REGISTER(oob_nv);
 
 #include <zephyr.h>
 #include <device.h>
-#include <drivers/flash.h>
-#include <fs/nvs.h>
+#include <flash.h>
+#include <nvs/nvs.h>
 
 #include "nv.h"
 

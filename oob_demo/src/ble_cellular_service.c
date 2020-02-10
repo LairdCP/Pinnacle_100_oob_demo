@@ -209,8 +209,8 @@ static void sinr_ccc_handler(const struct bt_gatt_attr *attr, u16_t value)
 #define RSSI_INDEX 22
 #define SINR_INDEX 25
 
-BT_GATT_SERVICE_DEFINE(
-	cell_svc, BT_GATT_PRIMARY_SERVICE(&CELL_SVC_UUID),
+static struct bt_gatt_attr cell_attrs[] = {
+	BT_GATT_PRIMARY_SERVICE(&CELL_SVC_UUID),
 	BT_GATT_CHARACTERISTIC(&IMEI_UUID.uuid, BT_GATT_CHRC_READ,
 			       BT_GATT_PERM_READ, read_imei, NULL,
 			       bcs.imei_value),
@@ -223,19 +223,17 @@ BT_GATT_SERVICE_DEFINE(
 			       BT_GATT_PERM_READ | BT_GATT_PERM_WRITE, read_apn,
 			       write_apn, bcs.apn.value),
 	LBT_GATT_CCC(apn_value),
-	BT_GATT_CHARACTERISTIC(&APN_USERNAME_UUID.uuid,
-			       BT_GATT_CHRC_READ | BT_GATT_CHRC_WRITE |
-				       BT_GATT_CHRC_NOTIFY,
-			       BT_GATT_PERM_READ | BT_GATT_PERM_WRITE,
-			       read_apn_username, write_apn_username,
-			       bcs.apn.username),
+	BT_GATT_CHARACTERISTIC(
+		&APN_USERNAME_UUID.uuid,
+		BT_GATT_CHRC_READ | BT_GATT_CHRC_WRITE | BT_GATT_CHRC_NOTIFY,
+		BT_GATT_PERM_READ | BT_GATT_PERM_WRITE, read_apn_username,
+		write_apn_username, bcs.apn.username),
 	LBT_GATT_CCC(apn_username),
-	BT_GATT_CHARACTERISTIC(&APN_PASSWORD_UUID.uuid,
-			       BT_GATT_CHRC_READ | BT_GATT_CHRC_WRITE |
-				       BT_GATT_CHRC_NOTIFY,
-			       BT_GATT_PERM_READ | BT_GATT_PERM_WRITE,
-			       read_apn_password, write_apn_password,
-			       bcs.apn.password),
+	BT_GATT_CHARACTERISTIC(
+		&APN_PASSWORD_UUID.uuid,
+		BT_GATT_CHRC_READ | BT_GATT_CHRC_WRITE | BT_GATT_CHRC_NOTIFY,
+		BT_GATT_PERM_READ | BT_GATT_PERM_WRITE, read_apn_password,
+		write_apn_password, bcs.apn.password),
 	LBT_GATT_CCC(apn_password),
 	BT_GATT_CHARACTERISTIC(&NETWORK_STATE_UUID.uuid,
 			       BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY,
@@ -247,16 +245,17 @@ BT_GATT_SERVICE_DEFINE(
 			       BT_GATT_PERM_READ, read_startup_state, NULL,
 			       bcs.startup_state),
 	LBT_GATT_CCC(startup_state),
-	BT_GATT_CHARACTERISTIC(&RSSI_UUID.uuid,
-			       BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY,
-			       BT_GATT_PERM_READ, lbt_read_integer, NULL,
-			       &bcs.rssi),
+	BT_GATT_CHARACTERISTIC(
+		&RSSI_UUID.uuid, BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY,
+		BT_GATT_PERM_READ, lbt_read_integer, NULL, &bcs.rssi),
 	LBT_GATT_CCC(rssi),
-	BT_GATT_CHARACTERISTIC(&SINR_UUID.uuid,
-			       BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY,
-			       BT_GATT_PERM_READ, lbt_read_integer, NULL,
-			       &bcs.sinr),
-	LBT_GATT_CCC(sinr));
+	BT_GATT_CHARACTERISTIC(
+		&SINR_UUID.uuid, BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY,
+		BT_GATT_PERM_READ, lbt_read_integer, NULL, &bcs.sinr),
+	LBT_GATT_CCC(sinr)
+};
+
+static struct bt_gatt_service cell_svc = BT_GATT_SERVICE(cell_attrs);
 
 void cell_svc_assign_connection_handler_getter(struct bt_conn *(*function)(void))
 {
@@ -332,4 +331,9 @@ void cell_svc_set_fw_ver(const char *ver)
 {
 	__ASSERT_NO_MSG(ver != NULL);
 	memcpy(bcs.fw_ver_value, ver, CELL_SVC_LTE_FW_VER_STRLEN_MAX);
+}
+
+void cell_svc_init()
+{
+	bt_gatt_service_register(&cell_svc);
 }

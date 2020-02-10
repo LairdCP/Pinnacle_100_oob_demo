@@ -137,17 +137,6 @@ struct remote_ble_sensor remote_ble_sensor_params;
 
 sensor_updated_function_t SensorCallbackFunction = NULL;
 
-static int zephyr_settings_fw_load(struct settings_store *cs,
-				   const char *subtree);
-
-static const struct settings_store_itf zephyr_settings_fw_itf = {
-	.csi_load = zephyr_settings_fw_load,
-};
-
-static struct settings_store zephyr_settings_fw_store = {
-	.cs_itf = &zephyr_settings_fw_itf
-};
-
 /* Function for starting BLE scan */
 static void bt_scan(void)
 {
@@ -628,25 +617,6 @@ static void disconnected(struct bt_conn *conn, u8_t reason)
 	}
 }
 
-static int zephyr_settings_fw_load(struct settings_store *cs,
-				   const char *subtree)
-{
-#if defined(CONFIG_BT_GATT_DIS_SETTINGS)
-
-#if defined(CONFIG_BT_GATT_DIS_FW_REV)
-	settings_runtime_set("bt/dis/fw", KERNEL_VERSION_STRING,
-			     sizeof(KERNEL_VERSION_STRING));
-#endif
-
-#if defined(CONFIG_BT_GATT_DIS_SW_REV)
-	settings_runtime_set("bt/dis/sw", APP_VERSION_STRING,
-			     sizeof(APP_VERSION_STRING));
-#endif
-
-#endif
-	return 0;
-}
-
 static char *get_sensor_state_string(u8_t state)
 {
 	// clang-format off
@@ -687,12 +657,6 @@ static void set_ble_state(enum ble_state state)
 		// Nothing needs to be done for these states.
 		break;
 	}
-}
-
-int settings_backend_init(void)
-{
-	settings_src_register(&zephyr_settings_fw_store);
-	return 0;
 }
 
 /* Function for initialising the BLE portion of the OOB demo */
