@@ -99,11 +99,12 @@ static void setup_iface_events(void)
 
 static void modemEventCallback(enum mdm_hl7800_event event, void *event_data)
 {
+	u8_t code = ((struct mdm_hl7800_compound_event *)event_data)->code;
 	switch (event) {
 	case HL7800_EVENT_NETWORK_STATE_CHANGE:
-		cell_svc_set_network_state(
-			((struct mdm_hl7800_compound_event *)event_data)->string);
-		switch (((struct mdm_hl7800_compound_event *)event_data)->code) {
+		cell_svc_set_network_state(code);
+
+		switch (code) {
 		case HL7800_HOME_NETWORK:
 			led_turn_on(RED_LED3);
 			break;
@@ -140,9 +141,8 @@ static void modemEventCallback(enum mdm_hl7800_event event, void *event_data)
 		break;
 
 	case HL7800_EVENT_STARTUP_STATE_CHANGE:
-		cell_svc_set_startup_state(
-			((struct mdm_hl7800_compound_event *)event_data)->string);
-		switch (((struct mdm_hl7800_compound_event *)event_data)->code) {
+		cell_svc_set_startup_state(code);
+		switch (code) {
 		case HL7800_STARTUP_STATE_READY:
 		case HL7800_STARTUP_STATE_WAITING_FOR_ACCESS_CODE:
 			// don't do anything
@@ -157,6 +157,14 @@ static void modemEventCallback(enum mdm_hl7800_event event, void *event_data)
 			led_turn_off(RED_LED3);
 			break;
 		}
+		break;
+
+	case HL7800_EVENT_SLEEP_STATE_CHANGE:
+		cell_svc_set_sleep_state(code);
+		break;
+
+	case HL7800_EVENT_RAT:
+		cell_svc_set_rat(*((u8_t *)event_data));
 		break;
 
 	default:

@@ -27,7 +27,7 @@ static struct bt_uuid_128 SENSOR_STATE_UUID = BSS_BASE_UUID_128(0x0001);
 static struct bt_uuid_128 SENSOR_BT_ADDR_UUID = BSS_BASE_UUID_128(0x0002);
 
 struct ble_sensor_service {
-	char sensor_state[MAX_SENSOR_STATE_SIZE];
+	u8_t sensor_state;
 	char sensor_bt_addr[BT_ADDR_LE_STR_LEN + 1];
 };
 
@@ -39,14 +39,6 @@ struct ccc_table {
 static struct ble_sensor_service bss;
 static struct ccc_table ccc;
 static struct bt_conn *(*get_connection_handle_fptr)(void);
-
-static ssize_t read_sensor_state(struct bt_conn *conn,
-				 const struct bt_gatt_attr *attr, void *buf,
-				 u16_t len, u16_t offset)
-{
-	return lbt_read_string(conn, attr, buf, len, offset,
-			       MAX_SENSOR_STATE_STRLEN);
-}
 
 static ssize_t read_sensor_bt_addr(struct bt_conn *conn,
 				   const struct bt_gatt_attr *attr, void *buf,
@@ -76,8 +68,8 @@ static struct bt_gatt_attr sensor_attrs[] = {
 	BT_GATT_PRIMARY_SERVICE(&BSS_UUID),
 	BT_GATT_CHARACTERISTIC(&SENSOR_STATE_UUID.uuid,
 			       BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY,
-			       BT_GATT_PERM_READ, read_sensor_state, NULL,
-			       bss.sensor_state),
+			       BT_GATT_PERM_READ, lbt_read_u8, NULL,
+			       &bss.sensor_state),
 	LBT_GATT_CCC(sensor_state),
 	BT_GATT_CHARACTERISTIC(&SENSOR_BT_ADDR_UUID.uuid,
 			       BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY,
@@ -110,13 +102,11 @@ void bss_assign_connection_handler_getter(struct bt_conn *(*function)(void))
 	get_connection_handle_fptr = function;
 }
 
-void bss_set_sensor_state(const char *state)
+void bss_set_sensor_state(u8_t state)
 {
-	__ASSERT_NO_MSG(state != NULL);
-	strncpy_replace_underscore_with_space(bss.sensor_state, state,
-					      sizeof(bss.sensor_state));
+	bss.sensor_state = state;
 	bss_notify(ccc.sensor_state.notify, SENSOR_STATE_INDEX,
-		   strlen(bss.sensor_state));
+		   sizeof(bss.sensor_state));
 }
 
 void bss_set_sensor_bt_addr(char *addr)

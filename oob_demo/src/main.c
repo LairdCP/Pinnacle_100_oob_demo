@@ -27,6 +27,7 @@ LOG_MODULE_REGISTER(oob_main);
 #include "ble_cellular_service.h"
 #include "ble_aws_service.h"
 #include "ble_sensor_service.h"
+#include "dis.h"
 
 #define MAIN_LOG_ERR(...) LOG_ERR(__VA_ARGS__)
 #define MAIN_LOG_WRN(...) LOG_WRN(__VA_ARGS__)
@@ -571,15 +572,18 @@ void main(void)
 	led_register_pattern_complete_function(GREEN_LED2,
 					       ledPatternCompleteCallback);
 
+	dis_initialize();
+
 	/* Start up BLE portion of the demo */
-	cell_svc_set_imei(lteInfo->IMEI);
-	cell_svc_set_fw_ver(lteInfo->radio_version);
+	cell_svc_init();
 	cell_svc_assign_connection_handler_getter(
 		oob_ble_get_central_connection);
-	cell_svc_init();
+	cell_svc_set_imei(lteInfo->IMEI);
+	cell_svc_set_fw_ver(lteInfo->radio_version);
+	cell_svc_set_iccid(lteInfo->ICCID);
 
-	bss_assign_connection_handler_getter(oob_ble_get_central_connection);
 	bss_init();
+	bss_assign_connection_handler_getter(oob_ble_get_central_connection);
 
 	rc = aws_svc_init(lteInfo->IMEI);
 	if (rc != 0) {

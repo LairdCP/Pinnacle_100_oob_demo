@@ -14,7 +14,6 @@ LOG_MODULE_REGISTER(oob_ble);
 #include <stddef.h>
 #include <errno.h>
 #include <bluetooth/uuid.h>
-#include <settings/settings.h>
 #include <version.h>
 
 #include "oob_common.h"
@@ -635,8 +634,11 @@ static char *get_sensor_state_string(u8_t state)
 
 static void set_ble_state(enum ble_state state)
 {
+	BLE_LOG_DBG("%s->%s",
+		    get_sensor_state_string(remote_ble_sensor_params.app_state),
+		    get_sensor_state_string(state));
 	remote_ble_sensor_params.app_state = state;
-	bss_set_sensor_state(get_sensor_state_string(state));
+	bss_set_sensor_state(state);
 
 	switch (state) {
 	case BT_DEMO_APP_STATE_CONNECTED_AND_CONFIGURED:
@@ -674,11 +676,6 @@ void oob_ble_initialise(const char *imei)
 	}
 
 	BLE_LOG_INF("Bluetooth initialized");
-
-	/* Load settings.
-    *  DIS uses settings framework to set some charateristics at runtime.
-    */
-	settings_load();
 
 	bt_conn_cb_register(&conn_callbacks);
 

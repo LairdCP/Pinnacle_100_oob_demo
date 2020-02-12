@@ -6,6 +6,7 @@
 
 #include <bluetooth/gatt.h>
 #include <bluetooth/bluetooth.h>
+#include <zephyr/types.h>
 
 #define IS_NOTIFIABLE(v) ((v) == BT_GATT_CCC_NOTIFY) ? true : false;
 
@@ -26,6 +27,11 @@ struct lbt_ccc_element {
  */
 #define LBT_GATT_CCC(name) BT_GATT_CCC(ccc.name.cfg, name##_ccc_handler)
 
+/**
+ *  @brief Helper function for reading a byte from the Bluetooth stack.
+ */
+ssize_t lbt_read_u8(struct bt_conn *conn, const struct bt_gatt_attr *attr,
+		    void *buf, u16_t len, u16_t offset);
 
 /**
  *  @brief Helper function for reading an integer from the Bluetooth stack.
@@ -51,3 +57,9 @@ ssize_t lbt_read_string(struct bt_conn *conn, const struct bt_gatt_attr *attr,
 ssize_t lbt_write_string(struct bt_conn *conn, const struct bt_gatt_attr *attr,
 			 const void *buf, u16_t len, u16_t offset, u8_t flags,
 			 u16_t max_str_length);
+
+/** 
+ * @brief Helper function for writing a u8_t from the Bluetooth stack.
+ */
+ssize_t lbt_write_u8(struct bt_conn *conn, const struct bt_gatt_attr *attr,
+		     const void *buf, u16_t len, u16_t offset, u8_t flags);

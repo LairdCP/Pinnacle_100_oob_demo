@@ -37,15 +37,21 @@ static struct bt_uuid_128 FW_VERSION_UUID = CELL_SVC_BASE_UUID_128(0x7c66);
 static struct bt_uuid_128 STARTUP_STATE_UUID = CELL_SVC_BASE_UUID_128(0x7c67);
 static struct bt_uuid_128 RSSI_UUID = CELL_SVC_BASE_UUID_128(0x7c68);
 static struct bt_uuid_128 SINR_UUID = CELL_SVC_BASE_UUID_128(0x7c69);
+static struct bt_uuid_128 SLEEP_STATE_UUID = CELL_SVC_BASE_UUID_128(0x7c6a);
+static struct bt_uuid_128 RAT_UUID = CELL_SVC_BASE_UUID_128(0x7c6b);
+static struct bt_uuid_128 ICCID_UUID = CELL_SVC_BASE_UUID_128(0x7c6c);
 
 struct ble_cellular_service {
 	char imei_value[MDM_HL7800_IMEI_SIZE];
 	struct mdm_hl7800_apn apn;
-	char network_state[MDM_HL7800_MAX_NETWORK_STATE_SIZE];
-	char fw_ver_value[CELL_SVC_LTE_FW_VER_LENGTH_MAX + 1];
-	char startup_state[MDM_HL7800_MAX_STARTUP_STATE_SIZE];
+	u8_t network_state;
+	char fw_ver_value[MDM_HL7800_REVISION_MAX_SIZE];
+	u8_t startup_state;
 	s32_t rssi;
 	s32_t sinr;
+	u8_t sleep_state;
+	u8_t rat; // radio access technology (CAT-M1 or NB1)
+	u8_t iccid[MDM_HL7800_ICCID_SIZE];
 };
 
 struct ccc_table {
@@ -56,6 +62,8 @@ struct ccc_table {
 	struct lbt_ccc_element startup_state;
 	struct lbt_ccc_element rssi;
 	struct lbt_ccc_element sinr;
+	struct lbt_ccc_element sleep_state;
+	struct lbt_ccc_element rat;
 };
 
 static struct ble_cellular_service bcs;
@@ -79,7 +87,7 @@ static ssize_t read_apn(struct bt_conn *conn, const struct bt_gatt_attr *attr,
 static ssize_t update_apn_in_modem(ssize_t length)
 {
 	if (length > 0) {
-		s32_t status = mdm_hl7800_update_apn(&bcs.apn);
+		s32_t status = mdm_hl7800_update_apn(bcs.apn.value);
 		if (status < 0) {
 			return BT_GATT_ERR(BT_ATT_ERR_UNLIKELY);
 		}
@@ -104,17 +112,6 @@ static ssize_t read_apn_username(struct bt_conn *conn,
 			       MDM_HL7800_APN_USERNAME_MAX_STRLEN);
 }
 
-static ssize_t write_apn_username(struct bt_conn *conn,
-				  const struct bt_gatt_attr *attr,
-				  const void *buf, u16_t len, u16_t offset,
-				  u8_t flags)
-{
-	ssize_t length = lbt_write_string(conn, attr, buf, len, offset, flags,
-					  MDM_HL7800_APN_USERNAME_MAX_STRLEN);
-
-	return length; // Don't update APN struct in modem until password is written.
-}
-
 static ssize_t read_apn_password(struct bt_conn *conn,
 				 const struct bt_gatt_attr *attr, void *buf,
 				 u16_t len, u16_t offset)
@@ -123,44 +120,38 @@ static ssize_t read_apn_password(struct bt_conn *conn,
 			       MDM_HL7800_APN_PASSWORD_MAX_STRLEN);
 }
 
-static ssize_t write_apn_password(struct bt_conn *conn,
-				  const struct bt_gatt_attr *attr,
-				  const void *buf, u16_t len, u16_t offset,
-				  u8_t flags)
-{
-	ssize_t length = lbt_write_string(conn, attr, buf, len, offset, flags,
-					  MDM_HL7800_APN_PASSWORD_MAX_STRLEN);
-
-	return update_apn_in_modem(length);
-}
-
-static ssize_t read_network_state(struct bt_conn *conn,
-				  const struct bt_gatt_attr *attr, void *buf,
-				  u16_t len, u16_t offset)
-{
-	return lbt_read_string(conn, attr, buf, len, offset,
-			       MDM_HL7800_MAX_NETWORK_STATE_STRLEN);
-}
-
 static ssize_t read_fw_ver(struct bt_conn *conn,
 			   const struct bt_gatt_attr *attr, void *buf,
 			   u16_t len, u16_t offset)
 {
 	return lbt_read_string(conn, attr, buf, len, offset,
-			       CELL_SVC_LTE_FW_VER_LENGTH_MAX);
+			       MDM_HL7800_REVISION_MAX_STRLEN);
 }
 
-static ssize_t read_startup_state(struct bt_conn *conn,
-				  const struct bt_gatt_attr *attr, void *buf,
-				  u16_t len, u16_t offset)
+static ssize_t write_rat(struct bt_conn *conn, const struct bt_gatt_attr *attr,
+			 const void *buf, u16_t len, u16_t offset, u8_t flags)
+{
+	if (!mdm_hl7800_valid_rat(*((u8_t *)buf))) {
+		return BT_GATT_ERR(BT_ATT_ERR_VALUE_NOT_ALLOWED);
+	}
+
+	ssize_t length = lbt_write_u8(conn, attr, buf, len, offset, flags);
+	if (length > 0) {
+		s32_t status = mdm_hl7800_update_rat(bcs.rat);
+		if (status < 0) {
+			return BT_GATT_ERR(BT_ATT_ERR_UNLIKELY);
+		}
+	}
+	return length;
+}
+
+static ssize_t read_iccid(struct bt_conn *conn, const struct bt_gatt_attr *attr,
+			  void *buf, u16_t len, u16_t offset)
 {
 	return lbt_read_string(conn, attr, buf, len, offset,
-			       MDM_HL7800_MAX_NETWORK_STATE_STRLEN);
+			       MDM_HL7800_ICCID_STRLEN);
 }
 
-/* The stack doesn't populate the handles in the attribute table.  
- * That prevents one possible refactoring.
- */
 static void apn_value_ccc_handler(const struct bt_gatt_attr *attr, u16_t value)
 {
 	ccc.apn_value.notify = IS_NOTIFIABLE(value);
@@ -200,6 +191,17 @@ static void sinr_ccc_handler(const struct bt_gatt_attr *attr, u16_t value)
 	ccc.sinr.notify = IS_NOTIFIABLE(value);
 }
 
+static void sleep_state_ccc_handler(const struct bt_gatt_attr *attr,
+				    u16_t value)
+{
+	ccc.sleep_state.notify = IS_NOTIFIABLE(value);
+}
+
+static void rat_ccc_handler(const struct bt_gatt_attr *attr, u16_t value)
+{
+	ccc.rat.notify = IS_NOTIFIABLE(value);
+}
+
 /* Cellular Service Declaration */
 #define APN_VALUE_INDEX 7
 #define APN_USERNAME_INDEX 10
@@ -208,6 +210,9 @@ static void sinr_ccc_handler(const struct bt_gatt_attr *attr, u16_t value)
 #define STARTUP_STATE_INDEX 19
 #define RSSI_INDEX 22
 #define SINR_INDEX 25
+#define SLEEP_STATE_INDEX 28
+#define RAT_INDEX 31
+#define ICCID_INDEX 34
 
 static struct bt_gatt_attr cell_attrs[] = {
 	BT_GATT_PRIMARY_SERVICE(&CELL_SVC_UUID),
@@ -223,27 +228,25 @@ static struct bt_gatt_attr cell_attrs[] = {
 			       BT_GATT_PERM_READ | BT_GATT_PERM_WRITE, read_apn,
 			       write_apn, bcs.apn.value),
 	LBT_GATT_CCC(apn_value),
-	BT_GATT_CHARACTERISTIC(
-		&APN_USERNAME_UUID.uuid,
-		BT_GATT_CHRC_READ | BT_GATT_CHRC_WRITE | BT_GATT_CHRC_NOTIFY,
-		BT_GATT_PERM_READ | BT_GATT_PERM_WRITE, read_apn_username,
-		write_apn_username, bcs.apn.username),
+	BT_GATT_CHARACTERISTIC(&APN_USERNAME_UUID.uuid,
+			       BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY,
+			       BT_GATT_PERM_READ, read_apn_username, NULL,
+			       bcs.apn.username),
 	LBT_GATT_CCC(apn_username),
-	BT_GATT_CHARACTERISTIC(
-		&APN_PASSWORD_UUID.uuid,
-		BT_GATT_CHRC_READ | BT_GATT_CHRC_WRITE | BT_GATT_CHRC_NOTIFY,
-		BT_GATT_PERM_READ | BT_GATT_PERM_WRITE, read_apn_password,
-		write_apn_password, bcs.apn.password),
+	BT_GATT_CHARACTERISTIC(&APN_PASSWORD_UUID.uuid,
+			       BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY,
+			       BT_GATT_PERM_READ, read_apn_password, NULL,
+			       bcs.apn.password),
 	LBT_GATT_CCC(apn_password),
 	BT_GATT_CHARACTERISTIC(&NETWORK_STATE_UUID.uuid,
 			       BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY,
-			       BT_GATT_PERM_READ, read_network_state, NULL,
-			       bcs.network_state),
+			       BT_GATT_PERM_READ, lbt_read_u8, NULL,
+			       &bcs.network_state),
 	LBT_GATT_CCC(network_state),
 	BT_GATT_CHARACTERISTIC(&STARTUP_STATE_UUID.uuid,
 			       BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY,
-			       BT_GATT_PERM_READ, read_startup_state, NULL,
-			       bcs.startup_state),
+			       BT_GATT_PERM_READ, lbt_read_u8, NULL,
+			       &bcs.startup_state),
 	LBT_GATT_CCC(startup_state),
 	BT_GATT_CHARACTERISTIC(
 		&RSSI_UUID.uuid, BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY,
@@ -252,7 +255,19 @@ static struct bt_gatt_attr cell_attrs[] = {
 	BT_GATT_CHARACTERISTIC(
 		&SINR_UUID.uuid, BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY,
 		BT_GATT_PERM_READ, lbt_read_integer, NULL, &bcs.sinr),
-	LBT_GATT_CCC(sinr)
+	LBT_GATT_CCC(sinr),
+	BT_GATT_CHARACTERISTIC(
+		&SLEEP_STATE_UUID.uuid, BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY,
+		BT_GATT_PERM_READ, lbt_read_u8, NULL, &bcs.sleep_state),
+	LBT_GATT_CCC(sleep_state),
+	BT_GATT_CHARACTERISTIC(&RAT_UUID.uuid,
+			       BT_GATT_CHRC_READ | BT_GATT_CHRC_WRITE |
+				       BT_GATT_CHRC_NOTIFY,
+			       BT_GATT_PERM_READ | BT_GATT_PERM_WRITE,
+			       lbt_read_u8, write_rat, &bcs.rat),
+	LBT_GATT_CCC(rat),
+	BT_GATT_CHARACTERISTIC(&ICCID_UUID.uuid, BT_GATT_CHRC_READ,
+			       BT_GATT_PERM_READ, read_iccid, NULL, bcs.iccid)
 };
 
 static struct bt_gatt_service cell_svc = BT_GATT_SERVICE(cell_attrs);
@@ -285,27 +300,30 @@ static void cell_svc_notify(bool notify, u16_t index, u16_t length)
 	}
 }
 
-void cell_svc_set_network_state(char *state)
+void cell_svc_set_network_state(u8_t state)
 {
-	__ASSERT_NO_MSG(state != NULL);
-	strncpy_replace_underscore_with_space(bcs.network_state, state,
-					      sizeof(bcs.network_state));
+	bcs.network_state = state;
 	cell_svc_notify(ccc.network_state.notify, NETWORK_STATE_INDEX,
-			strlen(bcs.network_state));
+			sizeof(bcs.network_state));
 }
 
-void cell_svc_set_startup_state(char *state)
+void cell_svc_set_startup_state(u8_t state)
 {
-	__ASSERT_NO_MSG(state != NULL);
-	strncpy_replace_underscore_with_space(bcs.startup_state, state,
-					      sizeof(bcs.startup_state));
+	bcs.startup_state = state;
 	cell_svc_notify(ccc.startup_state.notify, STARTUP_STATE_INDEX,
-			strlen(bcs.startup_state));
+			sizeof(bcs.startup_state));
+}
+
+void cell_svc_set_sleep_state(u8_t state)
+{
+	bcs.sleep_state = state;
+	cell_svc_notify(ccc.sleep_state.notify, SLEEP_STATE_INDEX,
+			sizeof(bcs.sleep_state));
 }
 
 void cell_svc_set_apn(struct mdm_hl7800_apn *access_point)
 {
-	__ASSERT_NO_MSG(apn != NULL);
+	__ASSERT_NO_MSG(access_point != NULL);
 	memcpy(&bcs.apn, access_point, sizeof(struct mdm_hl7800_apn));
 	cell_svc_notify(ccc.apn_value.notify, APN_VALUE_INDEX,
 			strlen(bcs.apn.value));
@@ -330,7 +348,19 @@ void cell_svc_set_sinr(int value)
 void cell_svc_set_fw_ver(const char *ver)
 {
 	__ASSERT_NO_MSG(ver != NULL);
-	memcpy(bcs.fw_ver_value, ver, CELL_SVC_LTE_FW_VER_STRLEN_MAX);
+	memcpy(bcs.fw_ver_value, ver, MDM_HL7800_REVISION_MAX_STRLEN);
+}
+
+void cell_svc_set_rat(u8_t value)
+{
+	bcs.rat = value;
+	cell_svc_notify(ccc.rat.notify, RAT_INDEX, sizeof(bcs.rat));
+}
+
+void cell_svc_set_iccid(const char *value)
+{
+	__ASSERT_NO_MSG(value != NULL);
+	memcpy(bcs.iccid, value, MDM_HL7800_ICCID_STRLEN);
 }
 
 void cell_svc_init()
