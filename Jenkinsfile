@@ -18,9 +18,9 @@ pipeline {
     }
     environment {
         BUILD_DIR = "build"
-        APP_SOURCE = "pinnacle100\\oob_demo"
+        APP_SOURCE = "oob_demo\\oob_demo"
         BUILD_RESULT_HEX_FILE = "${env.BUILD_DIR}\\zephyr\\zephyr.hex"
-        VERSION_INFO_FILE_PATH = "pinnacle100/oob_demo/include/oob_common.h"
+        VERSION_INFO_FILE_PATH = "oob_demo/oob_demo/include/oob_common.h"
         FINAL_RESULT_NAME = "oob_demo"
     }
     stages {
@@ -37,7 +37,7 @@ pipeline {
         }
         stage('Build') {
             steps{
-                bat "west build -b pinnacle_100_dvk -d ${env.BUILD_DIR} ${env.APP_SOURCE} -- -D BOARD_ROOT=%cd%\\pinnacle100"
+                bat "west build -b pinnacle_100_dvk -d ${env.BUILD_DIR} ${env.APP_SOURCE} -- -D BOARD_ROOT=%cd%\\oob_demo"
             }
         }
         stage('Package') {
