@@ -37,6 +37,10 @@ manifest:
       path: zephyr/ext/hal/lairdconnectivity
       revision: 1c357f06c6f79515930743e94a94855dd997c679
       remote: LairdInternal
+    - name: pinnacle_100_boards
+      path: zephyr/boards/arm
+      revision: master
+      remote: LairdInternal
 
   self:
     path: oob_demo
