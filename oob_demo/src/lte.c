@@ -106,20 +106,22 @@ static void modemEventCallback(enum mdm_hl7800_event event, void *event_data)
 
 		switch (code) {
 		case HL7800_HOME_NETWORK:
+		case HL7800_OUT_OF_COVERAGE_NETWORK_UP:
 			led_turn_on(RED_LED3);
 			break;
 
 		case HL7800_REGISTRATION_DENIED:
 		case HL7800_UNABLE_TO_CONFIGURE:
+		case HL7800_OUT_OF_COVERAGE_NETWORK_DOWN:
 			led_turn_off(RED_LED3);
 			break;
 
 		case HL7800_NOT_REGISTERED:
-		case HL7800_OUT_OF_COVERAGE:
 		case HL7800_SEARCHING:
 			led_blink(RED_LED3, &NETWORK_SEARCH_LED_PATTERN);
 			break;
 
+		case HL7800_OUT_OF_COVERAGE:
 		case HL7800_EMERGENCY:
 		case HL7800_ROAMING:
 		default:
