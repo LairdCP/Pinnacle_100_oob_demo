@@ -34,6 +34,18 @@ ssize_t lbt_read_u8(struct bt_conn *conn, const struct bt_gatt_attr *attr,
 		    void *buf, u16_t len, u16_t offset);
 
 /**
+ *  @brief Helper function for reading a uint16 from the Bluetooth stack.
+ */
+ssize_t lbt_read_u16(struct bt_conn *conn, const struct bt_gatt_attr *attr,
+		    void *buf, u16_t len, u16_t offset);
+
+/**
+ *  @brief Helper function for reading a uint32 from the Bluetooth stack.
+ */
+ssize_t lbt_read_u32(struct bt_conn *conn, const struct bt_gatt_attr *attr,
+		    void *buf, u16_t len, u16_t offset);
+
+/**
  *  @brief Helper function for reading an integer from the Bluetooth stack.
  */
 ssize_t lbt_read_integer(struct bt_conn *conn, const struct bt_gatt_attr *attr,

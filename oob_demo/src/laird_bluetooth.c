@@ -18,6 +18,20 @@ ssize_t lbt_read_u8(struct bt_conn *conn, const struct bt_gatt_attr *attr,
 				 sizeof(u8_t));
 }
 
+ssize_t lbt_read_u16(struct bt_conn *conn, const struct bt_gatt_attr *attr,
+		    void *buf, u16_t len, u16_t offset)
+{
+	return bt_gatt_attr_read(conn, attr, buf, len, offset, attr->user_data,
+				 sizeof(u16_t));
+}
+
+ssize_t lbt_read_u32(struct bt_conn *conn, const struct bt_gatt_attr *attr,
+		    void *buf, u16_t len, u16_t offset)
+{
+	return bt_gatt_attr_read(conn, attr, buf, len, offset, attr->user_data,
+				 sizeof(u32_t));
+}
+
 ssize_t lbt_read_integer(struct bt_conn *conn, const struct bt_gatt_attr *attr,
 			 void *buf, u16_t len, u16_t offset)
 {
