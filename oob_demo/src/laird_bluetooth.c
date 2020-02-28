@@ -80,3 +80,20 @@ ssize_t lbt_write_u8(struct bt_conn *conn, const struct bt_gatt_attr *attr,
 	memcpy(attr->user_data, buf, len);
 	return len;
 }
+
+u16_t lbt_find_gatt_index(struct bt_uuid *uuid, struct bt_gatt_attr *gatt,
+			  size_t size)
+{
+	size_t i = 0;
+	while (i < size) {
+		if (memcmp(gatt[i].uuid, uuid,
+			   sizeof(struct bt_uuid_128)) == 0) {
+			return (u16_t)i;
+		}
+		++i;
+	}
+
+	/* Not found */
+	__ASSERT(0, "GATT handle for characteristic not found");
+	return 0;
+}

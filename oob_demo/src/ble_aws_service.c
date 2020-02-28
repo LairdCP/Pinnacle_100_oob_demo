@@ -17,6 +17,7 @@ LOG_MODULE_REGISTER(oob_aws_svc);
 #include "ble_aws_service.h"
 #include "nv.h"
 #include "aws.h"
+#include "laird_bluetooth.h"
 
 #define AWS_SVC_LOG_ERR(...) LOG_ERR(__VA_ARGS__)
 #define AWS_SVC_LOG_WRN(...) LOG_WRN(__VA_ARGS__)
@@ -77,6 +78,8 @@ static enum aws_status status_value;
 static bool isClientCertStored = false;
 static bool isClientKeyStored = false;
 static u32_t lastCredOffset;
+
+static u16_t svc_status_index;
 
 static aws_svc_event_function_t eventCallbackFunc = NULL;
 
@@ -318,7 +321,6 @@ static void status_cfg_changed(const struct bt_gatt_attr *attr, u16_t value)
 }
 
 /* AWS Service Declaration */
-#define AWS_SVC_STATUS_ATT_INDEX 14
 static struct bt_gatt_attr aws_attrs[] = {
 	BT_GATT_PRIMARY_SERVICE(&aws_svc_uuid),
 	BT_GATT_CHARACTERISTIC(&aws_cliend_id_uuid.uuid,
@@ -399,7 +401,7 @@ void aws_svc_set_status(struct bt_conn *conn, enum aws_status status)
 		status_value = status;
 	}
 	if ((conn != NULL) && status_notify && notify) {
-		bt_gatt_notify(conn, &aws_svc.attrs[AWS_SVC_STATUS_ATT_INDEX],
+		bt_gatt_notify(conn, &aws_svc.attrs[svc_status_index],
 			       &status, sizeof(status));
 	}
 }
@@ -463,6 +465,10 @@ int aws_svc_init(const char *clientId)
 	}
 
 	bt_gatt_service_register(&aws_svc);
+
+	size_t gatt_size = (sizeof(aws_attrs)/sizeof(aws_attrs[0]));
+	svc_status_index = lbt_find_gatt_index(&aws_status_uuid.uuid,
+					       aws_attrs, gatt_size);
 
 	return AWS_SVC_ERR_NONE;
 }

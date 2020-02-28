@@ -29,6 +29,9 @@ static struct bt_uuid_128 SENSOR_BT_ADDR_UUID = BSS_BASE_UUID_128(0x0002);
 struct ble_sensor_service {
 	u8_t sensor_state;
 	char sensor_bt_addr[BT_ADDR_LE_STR_LEN + 1];
+
+	u16_t sensor_state_index;
+	u16_t sensor_bt_addr_index;
 };
 
 struct ccc_table {
@@ -61,9 +64,6 @@ static void sensor_bt_addr_ccc_handler(const struct bt_gatt_attr *attr,
 }
 
 /* Cellular Service Declaration */
-#define SENSOR_STATE_INDEX 3
-#define SENSOR_BT_ADDR_INDEX 6
-
 static struct bt_gatt_attr sensor_attrs[] = {
 	BT_GATT_PRIMARY_SERVICE(&BSS_UUID),
 	BT_GATT_CHARACTERISTIC(&SENSOR_STATE_UUID.uuid,
@@ -105,7 +105,7 @@ void bss_assign_connection_handler_getter(struct bt_conn *(*function)(void))
 void bss_set_sensor_state(u8_t state)
 {
 	bss.sensor_state = state;
-	bss_notify(ccc.sensor_state.notify, SENSOR_STATE_INDEX,
+	bss_notify(ccc.sensor_state.notify, bss.sensor_state_index,
 		   sizeof(bss.sensor_state));
 }
 
@@ -115,11 +115,17 @@ void bss_set_sensor_bt_addr(char *addr)
 	if (addr != NULL) {
 		strncpy(bss.sensor_bt_addr, addr, BT_ADDR_LE_STR_LEN);
 	}
-	bss_notify(ccc.sensor_bt_addr.notify, SENSOR_BT_ADDR_INDEX,
+	bss_notify(ccc.sensor_bt_addr.notify, bss.sensor_bt_addr_index,
 		   strlen(bss.sensor_bt_addr));
 }
 
 void bss_init()
 {
 	bt_gatt_service_register(&sensor_service);
+
+	size_t gatt_size = (sizeof(sensor_attrs)/sizeof(sensor_attrs[0]));
+	bss.sensor_state_index = lbt_find_gatt_index(&SENSOR_STATE_UUID.uuid,
+						     sensor_attrs, gatt_size);
+	bss.sensor_bt_addr_index = lbt_find_gatt_index(&SENSOR_BT_ADDR_UUID.uuid,
+						       sensor_attrs, gatt_size);
 }

@@ -52,6 +52,17 @@ struct ble_cellular_service {
 	u8_t sleep_state;
 	u8_t rat; // radio access technology (CAT-M1 or NB1)
 	u8_t iccid[MDM_HL7800_ICCID_SIZE];
+
+	u16_t apn_index;
+	u16_t apn_username_index;
+	u16_t apn_password_index;
+	u16_t network_state_index;
+	u16_t startup_state_index;
+	u16_t rssi_index;
+	u16_t sinr_index;
+	u16_t sleep_state_index;
+	u16_t rat_index;
+	u16_t iccid_index;
 };
 
 struct ccc_table {
@@ -203,17 +214,6 @@ static void rat_ccc_handler(const struct bt_gatt_attr *attr, u16_t value)
 }
 
 /* Cellular Service Declaration */
-#define APN_VALUE_INDEX 7
-#define APN_USERNAME_INDEX 10
-#define APN_PASSWORD_INDEX 13
-#define NETWORK_STATE_INDEX 16
-#define STARTUP_STATE_INDEX 19
-#define RSSI_INDEX 22
-#define SINR_INDEX 25
-#define SLEEP_STATE_INDEX 28
-#define RAT_INDEX 31
-#define ICCID_INDEX 34
-
 static struct bt_gatt_attr cell_attrs[] = {
 	BT_GATT_PRIMARY_SERVICE(&CELL_SVC_UUID),
 	BT_GATT_CHARACTERISTIC(&IMEI_UUID.uuid, BT_GATT_CHRC_READ,
@@ -303,21 +303,21 @@ static void cell_svc_notify(bool notify, u16_t index, u16_t length)
 void cell_svc_set_network_state(u8_t state)
 {
 	bcs.network_state = state;
-	cell_svc_notify(ccc.network_state.notify, NETWORK_STATE_INDEX,
+	cell_svc_notify(ccc.network_state.notify, bcs.network_state_index,
 			sizeof(bcs.network_state));
 }
 
 void cell_svc_set_startup_state(u8_t state)
 {
 	bcs.startup_state = state;
-	cell_svc_notify(ccc.startup_state.notify, STARTUP_STATE_INDEX,
+	cell_svc_notify(ccc.startup_state.notify, bcs.startup_state_index,
 			sizeof(bcs.startup_state));
 }
 
 void cell_svc_set_sleep_state(u8_t state)
 {
 	bcs.sleep_state = state;
-	cell_svc_notify(ccc.sleep_state.notify, SLEEP_STATE_INDEX,
+	cell_svc_notify(ccc.sleep_state.notify, bcs.sleep_state_index,
 			sizeof(bcs.sleep_state));
 }
 
@@ -325,24 +325,24 @@ void cell_svc_set_apn(struct mdm_hl7800_apn *access_point)
 {
 	__ASSERT_NO_MSG(access_point != NULL);
 	memcpy(&bcs.apn, access_point, sizeof(struct mdm_hl7800_apn));
-	cell_svc_notify(ccc.apn_value.notify, APN_VALUE_INDEX,
+	cell_svc_notify(ccc.apn_value.notify, bcs.apn_index,
 			strlen(bcs.apn.value));
-	cell_svc_notify(ccc.apn_username.notify, APN_USERNAME_INDEX,
+	cell_svc_notify(ccc.apn_username.notify, bcs.apn_username_index,
 			strlen(bcs.apn.username));
-	cell_svc_notify(ccc.apn_password.notify, APN_PASSWORD_INDEX,
+	cell_svc_notify(ccc.apn_password.notify, bcs.apn_password_index,
 			strlen(bcs.apn.password));
 }
 
 void cell_svc_set_rssi(int value)
 {
 	bcs.rssi = (s32_t)value;
-	cell_svc_notify(ccc.rssi.notify, RSSI_INDEX, sizeof(bcs.rssi));
+	cell_svc_notify(ccc.rssi.notify, bcs.rssi_index, sizeof(bcs.rssi));
 }
 
 void cell_svc_set_sinr(int value)
 {
 	bcs.sinr = (s32_t)value;
-	cell_svc_notify(ccc.sinr.notify, SINR_INDEX, sizeof(bcs.sinr));
+	cell_svc_notify(ccc.sinr.notify, bcs.sinr_index, sizeof(bcs.sinr));
 }
 
 void cell_svc_set_fw_ver(const char *ver)
@@ -354,7 +354,7 @@ void cell_svc_set_fw_ver(const char *ver)
 void cell_svc_set_rat(u8_t value)
 {
 	bcs.rat = value;
-	cell_svc_notify(ccc.rat.notify, RAT_INDEX, sizeof(bcs.rat));
+	cell_svc_notify(ccc.rat.notify, bcs.rat_index, sizeof(bcs.rat));
 }
 
 void cell_svc_set_iccid(const char *value)
@@ -366,4 +366,26 @@ void cell_svc_set_iccid(const char *value)
 void cell_svc_init()
 {
 	bt_gatt_service_register(&cell_svc);
+
+	size_t gatt_size = (sizeof(cell_attrs)/sizeof(cell_attrs[0]));
+	bcs.apn_index = lbt_find_gatt_index(&APN_UUID.uuid, cell_attrs,
+					    gatt_size);
+	bcs.apn_username_index = lbt_find_gatt_index(&APN_USERNAME_UUID.uuid,
+						     cell_attrs, gatt_size);
+	bcs.apn_password_index = lbt_find_gatt_index(&APN_PASSWORD_UUID.uuid,
+						     cell_attrs, gatt_size);
+	bcs.network_state_index = lbt_find_gatt_index(&NETWORK_STATE_UUID.uuid,
+						      cell_attrs, gatt_size);
+	bcs.startup_state_index = lbt_find_gatt_index(&STARTUP_STATE_UUID.uuid,
+						      cell_attrs, gatt_size);
+	bcs.rssi_index = lbt_find_gatt_index(&RSSI_UUID.uuid, cell_attrs,
+					     gatt_size);
+	bcs.sinr_index = lbt_find_gatt_index(&SINR_UUID.uuid, cell_attrs,
+					     gatt_size);
+	bcs.sleep_state_index = lbt_find_gatt_index(&SLEEP_STATE_UUID.uuid,
+						    cell_attrs, gatt_size);
+	bcs.rat_index = lbt_find_gatt_index(&RAT_UUID.uuid, cell_attrs,
+					    gatt_size);
+	bcs.iccid_index = lbt_find_gatt_index(&ICCID_UUID.uuid, cell_attrs,
+					      gatt_size);
 }
