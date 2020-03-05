@@ -88,6 +88,16 @@ Characteristics:
 | RAT              | 43787c6b-9e84-4eb1-a669-70b6404da336 | read/write/notify | One byte for Radio Access Technology: 0 - CAT M1, 1 = CAT NB1                                                                                                                                                                                            |
 | ICCID            | 43787c6c-9e84-4eb1-a669-70b6404da336 | read              | 20-digit ASCII string                                                                                                                                                                                                                                    |
 
+## Power Profile
+
+### UUID: dc1c0000-f3d7-559e-f24e-78fb67b2b7eb
+
+Characteristics:
+
+| Name                 | UUID                                 | Properties | Description                                                                                        |
+| -------------------- | ------------------------------------ | ---------- | -------------------------------------------------------------------------------------------------- |
+| Power supply voltage | dc1c0001-f3d7-559e-f24e-78fb67b2b7eb | notify     | Two bytes. Byte 0 is the integer part of the voltage and byte 1 is the decimal part of the voltage |
+
 ## Sensor Profile
 
 ### UUID: ab010000-5bab-471a-9074-a0ae3937c70c
