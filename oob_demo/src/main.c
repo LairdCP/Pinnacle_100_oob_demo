@@ -28,6 +28,7 @@ LOG_MODULE_REGISTER(oob_main);
 #include "ble_aws_service.h"
 #include "ble_sensor_service.h"
 #include "ble_power_service.h"
+#include "power.h"
 #include "dis.h"
 #include "bootloader.h"
 
