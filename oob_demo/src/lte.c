@@ -106,6 +106,7 @@ static void modemEventCallback(enum mdm_hl7800_event event, void *event_data)
 
 		switch (code) {
 		case HL7800_HOME_NETWORK:
+		case HL7800_ROAMING:
 			led_turn_on(RED_LED3);
 			break;
 
@@ -121,9 +122,8 @@ static void modemEventCallback(enum mdm_hl7800_event event, void *event_data)
 			break;
 
 		case HL7800_EMERGENCY:
-		case HL7800_ROAMING:
 		default:
-			// Don't do anything.
+			led_turn_off(RED_LED3);
 			break;
 		}
 		break;
@@ -145,9 +145,6 @@ static void modemEventCallback(enum mdm_hl7800_event event, void *event_data)
 		switch (code) {
 		case HL7800_STARTUP_STATE_READY:
 		case HL7800_STARTUP_STATE_WAITING_FOR_ACCESS_CODE:
-			// don't do anything
-			break;
-
 		case HL7800_STARTUP_STATE_SIM_NOT_PRESENT:
 		case HL7800_STARTUP_STATE_SIMLOCK:
 		case HL7800_STARTUP_STATE_UNRECOVERABLE_ERROR:
