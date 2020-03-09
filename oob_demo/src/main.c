@@ -50,6 +50,7 @@ static void appStateCommissionDevice(void);
 static void appStateWaitForSensorData(void);
 
 static void setAwsStatusWrapper(struct bt_conn *conn, enum aws_status status);
+void sendDataOnConnection(void);
 
 K_TIMER_DEFINE(SendDataTimer, SendDataTimerExpired, NULL);
 K_SEM_DEFINE(send_data_sem, 0, 1);
@@ -110,6 +111,15 @@ static void SendDataTimerExpired(struct k_timer *dummy)
 	}
 }
 
+void sendDataOnConnection(void)
+{
+	sendSensorDataAsap = true;
+	if (bUpdatedTemperature && bUpdatedHumidity && bUpdatedPressure) {
+		MAIN_LOG_INF("Send sensor on connection");
+		k_sem_give(&send_data_sem);
+	}
+}
+
 /* This is a callback function which receives sensor readings */
 static void SensorUpdated(u8_t sensor, s32_t reading)
 {
@@ -130,9 +140,14 @@ static void SensorUpdated(u8_t sensor, s32_t reading)
 	k_mutex_unlock(&sensor_data_lock);
 	if (sendSensorDataAsap && bUpdatedTemperature && bUpdatedHumidity &&
 	    bUpdatedPressure) {
+		MAIN_LOG_INF("Sensor updated, send data");
 		sendSensorDataAsap = false;
 		k_sem_give(&send_data_sem);
-		startSendDataTimer();
+		if (awsConnected()) {
+			/* only start the timer if we are connected to AWS,
+			 * we will restart the timer after we send data */
+			startSendDataTimer();
+		}
 	}
 }
 
@@ -143,9 +158,13 @@ static void lteEvent(enum lte_event event)
 		k_sem_give(&lte_ready_sem);
 		break;
 	case LTE_EVT_DISCONNECTED:
-		/* No need to trigger a reconnect.
-		*  If next sensor data TX fails we will reconnect. 
-		*/
+		if (awsConnected()) {
+			appState = appStateAwsDisconnect;
+			/* trigger data send now so we dont have to wait for the timer to expire */
+			k_sem_give(&send_data_sem);
+		} else {
+			appState = appStateWaitForLte;
+		}
 		break;
 	}
 }
@@ -171,6 +190,11 @@ static void appStateAwsSendSensorData(void)
 	int take =
 		k_sem_take(&send_data_sem, K_SECONDS(DATA_SEND_TIME_SECONDS));
 	if (take == 0) {
+		if (appState == appStateAwsDisconnect) {
+			/* we need to disconnect and not send any data */
+			return;
+		}
+
 		lteInfo = lteGetStatus();
 
 		k_mutex_lock(&sensor_data_lock, K_FOREVER);
@@ -185,7 +209,11 @@ static void appStateAwsSendSensorData(void)
 			appState = appStateAwsDisconnect;
 		} else {
 			MAIN_LOG_INF("Data sent");
+			sendSensorDataAsap = false;
 			led_blink(GREEN_LED2, &LED_BLIP_PATTERN);
+			/* stop and restart the data timer to re-sync sending periodically */
+			stopSendDataTimer();
+			startSendDataTimer();
 		}
 
 		k_mutex_unlock(&sensor_data_lock);
@@ -216,7 +244,7 @@ static void appStateAwsInitShadow(void)
 	/* The shadow init is only sent once after the very first connect.
 	*  we want to send the first sensor data ASAP after the shadow is inited
 	*/
-	sendSensorDataAsap = true;
+	sendDataOnConnection();
 	appState = appStateAwsSendSensorData;
 exit:
 	return;
@@ -253,7 +281,7 @@ static void appStateAwsConnect(void)
 		appState = appStateAwsInitShadow;
 	} else {
 		/* after a connection we want to send the first sensor data ASAP */
-		sendSensorDataAsap = true;
+		sendDataOnConnection();
 		appState = appStateAwsSendSensorData;
 	}
 }
@@ -270,7 +298,15 @@ static void appStateAwsDisconnect(void)
 			    AWS_STATUS_DISCONNECTED);
 	stopSendDataTimer();
 	awsDisconnect();
-	appState = appStateWaitForSensorData;
+
+	if (initShadow) {
+		/* we still need to init the shadow, reconnect */
+		appState = appStateAwsConnect;
+	} else {
+		/* Next time we connect, send data ASAP */
+		sendSensorDataAsap = true;
+		appState = appStateWaitForSensorData;
+	}
 }
 
 /* On startup there is configuration data to send to AWS.

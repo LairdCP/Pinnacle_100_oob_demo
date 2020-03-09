@@ -35,9 +35,9 @@
       "label": "flash application",
       "type": "shell",
       // Linux based command is not tested
-      "command": "west flash -d build && nrfjprog -f NRF52 --reset",
+      "command": "west flash -d build",
       "windows": {
-        "command": "west flash -d ${workspaceRoot}\\build && nrfjprog -f NRF52 --reset"
+        "command": "west flash -d ${workspaceRoot}\\build"
       },
       "problemMatcher": []
     },

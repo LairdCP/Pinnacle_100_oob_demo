@@ -62,7 +62,7 @@ static void iface_ready_evt_handler(struct net_mgmt_event_callback *cb,
 		return;
 	}
 
-	LTE_LOG_DBG("LTE DNS addr added!");
+	LTE_LOG_DBG("LTE is ready!");
 	onLteEvent(LTE_EVT_READY);
 }
 

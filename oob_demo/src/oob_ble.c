@@ -29,6 +29,7 @@ LOG_MODULE_REGISTER(oob_ble);
 #define BLE_LOG_DBG(...) LOG_DBG(__VA_ARGS__)
 
 #define BT_REMOTE_DEVICE_NAME_STR "BL654 BME280 Sensor"
+#define DESCOVER_SERVICES_DELAY_SECONDS 1
 
 enum ble_state {
 	/* Scanning for remote sensor */
@@ -120,21 +121,34 @@ struct remote_ble_sensor {
 	struct bt_gatt_subscribe_params humidity_subscribe_params;
 };
 
-struct bt_conn *sensor_conn = NULL;
-struct bt_conn *central_conn = NULL;
+static struct bt_conn *sensor_conn = NULL;
+static struct bt_conn *central_conn = NULL;
 
-struct bt_uuid_16 uuid = BT_UUID_INIT_16(0);
+static struct bt_uuid_16 uuid = BT_UUID_INIT_16(0);
 
-struct bt_gatt_discover_params discover_params;
+static struct bt_gatt_discover_params discover_params;
 
-struct bt_conn_cb conn_callbacks = {
+static struct k_delayed_work discover_services_work;
+
+static struct bt_conn_cb conn_callbacks = {
 	.connected = connected,
 	.disconnected = disconnected,
 };
 
-struct remote_ble_sensor remote_ble_sensor_params;
+static struct remote_ble_sensor remote_ble_sensor_params;
 
 sensor_updated_function_t SensorCallbackFunction = NULL;
+
+static void discover_services_work_callback(struct k_work *work)
+{
+	ARG_UNUSED(work);
+	memcpy(&uuid, BT_UUID_ESS, sizeof(uuid));
+	set_ble_state(BT_DEMO_APP_STATE_FINDING_SERVICE);
+	int err = find_service(sensor_conn, uuid);
+	if (err) {
+		BLE_LOG_ERR("Discover failed(err %d)", err);
+	}
+}
 
 /* Function for starting BLE scan */
 static void bt_scan(void)
@@ -187,12 +201,12 @@ static void device_found(const bt_addr_le_t *addr, s8_t rssi, u8_t type,
 				memcpy(devname_found,
 				       &ad->data[ad_element_indx + 1],
 				       (ad_element_len - 1));
-
 				/* Check if this is the device we are looking for */
 				if (memcmp(devname_found, devname_expected,
 					   (sizeof(devname_expected) - 1)) ==
 				    0) {
-					BLE_LOG_INF("Found BL654 Sensor");
+					BLE_LOG_INF("Found %s",
+						    BT_REMOTE_DEVICE_NAME_STR);
 					err = bt_le_scan_stop();
 					if (err) {
 						BLE_LOG_ERR(
@@ -230,7 +244,19 @@ static u8_t notify_func_callback(struct bt_conn *conn,
 {
 	s32_t reading;
 	if (!data) {
-		BLE_LOG_INF("Unsubscribed");
+		if (params->value_handle ==
+		    remote_ble_sensor_params.temperature_subscribe_params
+			    .value_handle) {
+			BLE_LOG_WRN("Unsubscribed from temperature");
+		} else if (params->value_handle ==
+			   remote_ble_sensor_params.humidity_subscribe_params
+				   .value_handle) {
+			BLE_LOG_WRN("Unsubscribed from humidity");
+		} else if (params->value_handle ==
+			   remote_ble_sensor_params.pressure_subscribe_params
+				   .value_handle) {
+			BLE_LOG_WRN("Unsubscribed from pressure");
+		}
 		params->value_handle = 0;
 		return BT_GATT_ITER_STOP;
 	}
@@ -544,19 +570,16 @@ static void connected(struct bt_conn *conn, u8_t err)
 
 	if (conn == sensor_conn) {
 		BLE_LOG_INF("Connected sensor: %s", log_strdup(addr));
-
-		memcpy(&uuid, BT_UUID_ESS, sizeof(uuid));
-
-		err = find_service(conn, uuid);
-
-		if (err) {
-			BLE_LOG_ERR("Discover failed(err %d)", err);
-			goto fail;
-		}
-		/* Reaching here means all is good, update state */
-		set_ble_state(BT_DEMO_APP_STATE_FINDING_SERVICE);
 		bss_set_sensor_bt_addr(addr);
 
+		/* wait some time before discovering services.
+		* After a connection the BME280 sensor disables
+		* charaterisitc notifications.
+		* We dont want that to interfere with use enabling
+		* notifications when we discover characteristics */
+		k_delayed_work_submit(
+			&discover_services_work,
+			K_SECONDS(DESCOVER_SERVICES_DELAY_SECONDS));
 	} else {
 		/* In this case a central device connected to us */
 		BLE_LOG_INF("Connected central: %s", log_strdup(addr));
@@ -668,6 +691,9 @@ void oob_ble_initialise(const char *imei)
 	char devName[sizeof("Pinnacle 100 OOB-1234567")];
 	int devNameEnd;
 	int imeiEnd;
+
+	k_delayed_work_init(&discover_services_work,
+			    discover_services_work_callback);
 
 	err = bt_enable(NULL);
 	if (err) {

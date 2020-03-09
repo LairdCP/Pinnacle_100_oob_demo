@@ -6,14 +6,14 @@
 
 #include <stdint.h>
 
-#define APP_VERSION_MAJOR 0
-#define APP_VERSION_MINOR 8
+#define APP_VERSION_MAJOR 1
+#define APP_VERSION_MINOR 0
 #define APP_VERSION_PATCH 0
 #define APP_VERSION_STRING                                                     \
 	STRINGIFY(APP_VERSION_MAJOR)                                           \
 	"." STRINGIFY(APP_VERSION_MINOR) "." STRINGIFY(APP_VERSION_PATCH)
 
-#define DATA_SEND_TIME_SECONDS 30
+#define DATA_SEND_TIME_SECONDS 90
 
 #define RETRY_AWS_ACTION_TIMEOUT_SECONDS 30
 

@@ -427,7 +427,7 @@ static int sendData(char *data)
 {
 	int rc;
 
-	rc = publish_string(&client_ctx, MQTT_QOS_0_AT_MOST_ONCE, data);
+	rc = publish_string(&client_ctx, MQTT_QOS_1_AT_LEAST_ONCE, data);
 	if (rc != 0) {
 		AWS_LOG_ERR("MQTT publish err (%d)", rc);
 		goto done;
