@@ -171,7 +171,7 @@ LED1 - LED4 are all on when the modem is booting.
 
 The Blue LED (LED1) will blink once a second when the Pinnacle is searching for a Bluetooth sensor. When it finds a sensor and successfully connects to it, the LED will stay on.
 
-The Green LED (LED2) will turn on when connected to AWS. When data is sent to AWS the LED will turn off for 1 second and then turn back on. When disconnected from AWS the led will remain off.
+The Green LED (LED2) will turn on when connected to AWS. When data is sent to AWS the LED will turn off and then turn back on. When disconnected from AWS the led will remain off.
 
 The Red LED (LED3) will blink when the Pinnacle is searching for a cellular network. It will remain on and not blink when connected to a network. If there is an error with the SIM card or network registration, then the led will remain off.
 
