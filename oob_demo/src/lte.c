@@ -63,6 +63,7 @@ static void iface_ready_evt_handler(struct net_mgmt_event_callback *cb,
 	}
 
 	LTE_LOG_DBG("LTE is ready!");
+	led_turn_on(RED_LED3);
 	onLteEvent(LTE_EVT_READY);
 }
 
@@ -74,6 +75,7 @@ static void iface_down_evt_handler(struct net_mgmt_event_callback *cb,
 	}
 
 	LTE_LOG_DBG("LTE is down");
+	led_turn_off(RED_LED3);
 	onLteEvent(LTE_EVT_DISCONNECTED);
 }
 
@@ -145,6 +147,7 @@ static void modemEventCallback(enum mdm_hl7800_event event, void *event_data)
 		switch (code) {
 		case HL7800_STARTUP_STATE_READY:
 		case HL7800_STARTUP_STATE_WAITING_FOR_ACCESS_CODE:
+			break;
 		case HL7800_STARTUP_STATE_SIM_NOT_PRESENT:
 		case HL7800_STARTUP_STATE_SIMLOCK:
 		case HL7800_STARTUP_STATE_UNRECOVERABLE_ERROR:
