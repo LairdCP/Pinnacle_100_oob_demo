@@ -74,7 +74,7 @@ The following are required to use the Pinnacle 100 out of box demo:
 - Pinnacle 100 DVK programmed with out of box demo firmware. Releases available [here!](https://github.com/LairdCP/Pinnacle_100_oob_demo/releases)
 - Laird Pinnacle Connect app installed on a mobile device
   - [Android app](http://play.google.com/store/apps/details?id=com.lairdconnect.pinnacle.connect)
-  - [iOS app](AppStore.com/LairdPinnacleConnect)
+  - [iOS app](https://apps.apple.com/us/app/laird-pinnacle-connect/id1481075861?ls=1)
 
 ## Setup
 
