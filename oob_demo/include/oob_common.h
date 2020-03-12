@@ -27,7 +27,7 @@
  * It is adjusted for the time to bring the cell network up, connect to AWS, 
  * and time to close the AWS connection.
  */
-#define PSM_ENABLED_SEND_DATA_WINDOW_TICKS K_SECONDS(8)
+#define PSM_ENABLED_SEND_DATA_WINDOW_TICKS K_SECONDS(12)
 
 #define PSM_DISABLED_SEND_DATA_RATE_TICKS K_SECONDS(30)
 

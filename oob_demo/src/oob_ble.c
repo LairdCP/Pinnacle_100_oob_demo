@@ -181,7 +181,7 @@ static void adv_handler(const bt_addr_le_t *addr, s8_t rssi, u8_t type,
 	/* Send a message so we can process ads in Sensor Task context
 	 * so that the BLE RX task isn't blocked.
 	 */
-	AdvMsg_t *pMsg = BufferPool_Take(sizeof(AdvMsg_t));
+	AdvMsg_t *pMsg = BufferPool_TryToTake(sizeof(AdvMsg_t));
 	if (pMsg == NULL) {
 		return;
 	}

@@ -388,7 +388,7 @@ static void ShadowMaker(SensorTable_t *pEntry)
 		}
 	}
 
-	JsonMsg_t *pMsg = BufferPool_Take(sizeof(JsonMsg_t));
+	JsonMsg_t *pMsg = BufferPool_TryToTake(sizeof(JsonMsg_t));
 	if (pMsg == NULL) {
 		return;
 	}
@@ -594,7 +594,7 @@ static void GatewayShadowMaker(void)
 		return;
 	}
 
-	JsonMsg_t *pMsg = BufferPool_Take(sizeof(JsonMsg_t));
+	JsonMsg_t *pMsg = BufferPool_TryToTake(sizeof(JsonMsg_t));
 	if (pMsg == NULL) {
 		return;
 	}

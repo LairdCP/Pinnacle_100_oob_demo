@@ -197,7 +197,8 @@ static int subscription_handler(struct mqtt_client *const client, size_t length)
 		return 0;
 	}
 
-	JsonGatewayInMsg_t *pMsg = BufferPool_Take(sizeof(JsonGatewayInMsg_t));
+	JsonGatewayInMsg_t *pMsg =
+		BufferPool_TryToTake(sizeof(JsonGatewayInMsg_t));
 	if (pMsg == NULL) {
 		return 0;
 	}

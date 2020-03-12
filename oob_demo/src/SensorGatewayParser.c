@@ -135,7 +135,7 @@ static void ParseArray(const char *pJson)
 	}
 
 	SensorWhitelistMsg_t *pMsg =
-		BufferPool_Take(sizeof(SensorWhitelistMsg_t));
+		BufferPool_TryToTake(sizeof(SensorWhitelistMsg_t));
 	if (pMsg == NULL) {
 		return;
 	}

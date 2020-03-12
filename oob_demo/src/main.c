@@ -113,8 +113,9 @@ static void SensorUpdated(u8_t sensor, s32_t reading)
 	}
 
 	if (bUpdatedTemperature && bUpdatedHumidity && bUpdatedPressure) {
-		BL654SensorMsg_t *pMsg = (BL654SensorMsg_t *)BufferPool_Take(
-			sizeof(BL654SensorMsg_t));
+		BL654SensorMsg_t *pMsg =
+			(BL654SensorMsg_t *)BufferPool_TryToTake(
+				sizeof(BL654SensorMsg_t));
 		if (pMsg == NULL) {
 			return;
 		}
@@ -179,6 +180,7 @@ static void appStateAwsSendSensorData(void)
 		blinkLedForDataSend();
 		awsMsgHandler();
 	}
+	LOG_INF("%u unsent messages", k_msgq_num_used_get(&sensorQ));
 
 	/* The purpose of this delay is to allow the UI (green LED) to be on
 	 * for a noticeable amount of time after data is sent. */
@@ -280,14 +282,16 @@ static void blinkLedForDataSend(void)
 /* Used to limit table generation to once per data interval. */
 static void generateBt510shadowRequestMsg(void)
 {
-	FwkMsg_t *pMsg = BufferPool_Take(sizeof(FwkMsg_t));
-	pMsg->header.msgCode = FMC_BT510_SHADOW_REQUEST;
-	pMsg->header.txId = FWK_ID_RESERVED;
-	pMsg->header.rxId = FWK_ID_SENSOR_TASK;
-	/* Try is used because the sensor task queue can be filled with ads. */
-	FRAMEWORK_MSG_TRY_TO_SEND(pMsg);
-	/* Allow sensor task to process message immediately (if system is idle). */
-	k_yield();
+	FwkMsg_t *pMsg = BufferPool_TryToTake(sizeof(FwkMsg_t));
+	if (pMsg != NULL) {
+		pMsg->header.msgCode = FMC_BT510_SHADOW_REQUEST;
+		pMsg->header.txId = FWK_ID_RESERVED;
+		pMsg->header.rxId = FWK_ID_SENSOR_TASK;
+		/* Try is used because the sensor task queue can be filled with ads. */
+		FRAMEWORK_MSG_TRY_TO_SEND(pMsg);
+		/* Allow sensor task to process message immediately (if system is idle). */
+		k_yield();
+	}
 }
 
 static void appStateAwsInitShadow(void)
