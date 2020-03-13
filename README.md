@@ -70,7 +70,7 @@ X                                X
 
 The following are required to use the Pinnacle 100 out of box demo:
 
-- An activated SIM card
+- An activated SIM card.  See [here](docs/revx-digikey-faq-v6.pdf) for instructions on activating the SIM card that came with your dev kit.
 - Pinnacle 100 DVK programmed with out of box demo firmware. Releases available [here!](https://github.com/LairdCP/Pinnacle_100_oob_demo/releases)
 - Laird Pinnacle Connect app installed on a mobile device
   - [Android app](http://play.google.com/store/apps/details?id=com.lairdconnect.pinnacle.connect)
