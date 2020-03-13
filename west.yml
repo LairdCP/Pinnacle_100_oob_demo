@@ -41,10 +41,10 @@ manifest:
       path: zephyr/ext/hal/lairdconnectivity
       revision: master
       remote: LairdInternal
-    - name: pinnacle_100_boards
+    - name: laird_connectivity_zephyr_boards
       path: zephyr/boards/arm
       revision: master
-      remote: LairdInternal
+      remote: prodEng
     - name: jsmn
       repo-path: jsmn.git
       path: modules/jsmn
