@@ -34,16 +34,16 @@ manifest:
     - name: zephyr
       repo-path: zephyr.git
       west-commands: scripts/west-commands.yml
-      revision: laird/hl7800
+      revision: c0a5d5f1521e2a2710032ac71bffbe88f0b82cca
       remote: LairdInternal
     - name: lairdconnectivityhal
       repo-path: zephyr-hal-lairdconnectivity.git
       path: zephyr/ext/hal/lairdconnectivity
-      revision: master
+      revision: ae68879a75c1955000e2d7a810b066f40295a946
       remote: LairdInternal
     - name: laird_connectivity_zephyr_boards
       path: zephyr/boards/arm
-      revision: master
+      revision: de9470f2516837cd17e9da7ac850455deb5c411f
       remote: prodEng
     - name: jsmn
       repo-path: jsmn.git
@@ -53,7 +53,7 @@ manifest:
     - name: framework
       repo-path: framework_zephyr.git
       path: modules/framework
-      revision: master
+      revision: 986809c6e5d629c3d163806823e02694d569b3b8
       remote: prodEng
 
   self:
