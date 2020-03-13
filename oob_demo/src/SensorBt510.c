@@ -130,6 +130,8 @@ static void GatewayShadowMaker(void);
 static char *MangleKey(const char *pKey, const char *pName);
 static void Whitelist(const char *pAddrString, bool NextState);
 
+static s32_t GetTemperature(SensorTable_t *pEntry);
+
 //=============================================================================
 // Global Function Definitions
 //=============================================================================
@@ -504,9 +506,22 @@ static void ShadowLastEventHandler(JsonMsg_t *pMsg, SensorTable_t *pEntry)
 	}
 }
 
+// The generic data field is unsigned but the temperature is signed.
+// Get temperature from advertisement (assumes event contains temperature).
+// retval temperature in hundreths of degree C
+static s32_t GetTemperature(SensorTable_t *pEntry)
+{
+	return (s32_t)((s16_t)pEntry->ad.data);
+}
+
 static void ShadowTemperatureHandler(JsonMsg_t *pMsg, SensorTable_t *pEntry)
 {
-	s32_t temperature = (s32_t)pEntry->ad.data;
+	s32_t temperature = GetTemperature(pEntry);
+	if (BT510_USES_SINGLE_AWS_TOPIC) {
+		// The desired format is degrees when publishing to a single topic
+		// because that is how the BL654 Sensor data is formatted.
+		temperature /= 100;
+	}
 	switch (pEntry->ad.recordType) {
 	case SENSOR_EVENT_TEMPERATURE:
 	case SENSOR_EVENT_ALARM_HIGH_TEMP_1:
@@ -518,7 +533,11 @@ static void ShadowTemperatureHandler(JsonMsg_t *pMsg, SensorTable_t *pEntry)
 	case SENSOR_EVENT_ALARM_DELTA_TEMP:
 	case SENSOR_EVENT_ALARM_TEMPERATURE_RATE_OF_CHANGE:
 		ShadowBuilder_AddSigned32(
-			pMsg, MangleKey(pEntry->name, "tempCc"), temperature);
+			pMsg,
+			MangleKey(pEntry->name, BT510_USES_SINGLE_AWS_TOPIC ?
+							"temperature" :
+							"tempCc"),
+			temperature);
 		break;
 	default:
 		break;
@@ -527,7 +546,7 @@ static void ShadowTemperatureHandler(JsonMsg_t *pMsg, SensorTable_t *pEntry)
 
 static void ShadowEventHandler(JsonMsg_t *pMsg, SensorTable_t *pEntry)
 {
-	s32_t temperature = (s32_t)pEntry->ad.data;
+	s32_t temperature = GetTemperature(pEntry);
 	switch (pEntry->ad.recordType) {
 	case SENSOR_EVENT_MAGNET:
 		ShadowBuilder_AddPair(
