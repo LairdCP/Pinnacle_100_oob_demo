@@ -210,10 +210,10 @@ From the directory where you issued the `west init` and `west update` commands y
 
 ```
 # Windows
-west build -b pinnacle_100_dvk -d pinnacle100\build pinnacle100\oob_demo -- -D BOARD_ROOT=%cd%\pinnacle100
+west build -b pinnacle_100_dvk -d oob_demo\build oob_demo\oob_demo
 
 # Linux and macOS
-west build -b pinnacle_100_dvk -d pinnacle100/build pinnacle100/oob_demo -- -D BOARD_ROOT=$PWD/pinnacle100
+west build -b pinnacle_100_dvk -d oob_demo/build oob_demo/oob_demo
 ```
 
 ### BLE Profiles
