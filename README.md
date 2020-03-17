@@ -23,10 +23,10 @@
 ## Introduction
 
 The Pinnacle 100 out of box demo demonstrates gathering sensor data over BLE and sending the data to the cloud (AWS) via LTE Cat-M1.
-The BLE sensor that is required for the demo is the BL654 BME280 sensor. The sensor measures temperature, humidity and pressure.
-The Pinnacle 100 will scan for BLE sensors and connect to the first sensor it finds.
-Using the Laird Pinnacle Connect mobile app, the user can provision the Pinnacle 100 to connect to AWS. Once connected to AWS, the Pinnacle will send sensor data (if a sensor is connected) to the cloud immediately and every 90 seconds after. The pinnacle 100 uses LTE Cat-M1 Power Save Mode(PSM) to save power in this demo.
-
+One device that can be used for the demo is the BL654 BME280 sensor. This sensor measures temperature, humidity and pressure.  Another sensor that can be used with the demo is the BT510.  It records temperature and movement.  The BT510 can also be configured to detect a magnet (door open/closed).  
+The Pinnacle 100 will scan for the BL654 Sensor and connect to the first one it finds.  The Pinnacle 100 will gather data for the BT510 devices from advertisements without creating a connection.  The demo does not include code for configuring the BT510.  This must be done using the BT510 phone application. 
+The demo supports one BL654 Sensor and up to fifteen BT510 sensors.  The demo can be recompiled to remove support for either sensor.
+Using the Laird Pinnacle Connect mobile app, the user can provision the Pinnacle 100 to connect to AWS. Once connected to AWS, the Pinnacle will send sensor data (if a sensor is found) to the cloud every 90 seconds. The Pinnacle 100 uses LTE Cat-M1 Power Save Mode(PSM) to save power in this demo.
 ```
                 XXXXX
               XXX   XXX
@@ -53,18 +53,19 @@ X                                X
                ^
                |
               BLE
-               |
-    +----------+------------+
-    |                       |
-    |  BL654 BME280 Sensor  |
-    |                       |
-    +-----------------------+
+               |- - - - - - - - - - - - - - - - |
+    +----------+------------+        +----------+------------+
+    |                       |        |                       |
+    |  BL654 BME280 Sensor  |        |  BT510 Sensor (0-15)  |
+    |                       |        |                       |
+    +-----------------------+        +-----------------------+
 
 ```
 
 ## Resources
 
 - [Pinnacle 100 product page](https://www.lairdconnect.com/wireless-modules/cellular-solutions/pinnacle-100-modem)
+- [BT510 Product page](https://www.lairdconnect.com/iot-devices/iot-sensors/bt510-bluetooth-5-long-range-ip67-multi-sensor)
 
 ## Prerequisites
 
@@ -169,7 +170,7 @@ The Pinnacle 100 will report sensor data every 90 seconds. The user can select t
 
 LED1 - LED4 are all on when the modem is booting.
 
-The Blue LED (LED1) will blink once a second when the Pinnacle is searching for a Bluetooth sensor. When it finds a sensor and successfully connects to it, the LED will stay on.
+The Blue LED (LED1) will blink once a second when the Pinnacle is searching for a BL654 Sensor. When it finds a sensor and successfully connects to it, the LED will stay on.
 
 The Green LED (LED2) will turn on when connected to AWS. When data is sent to AWS the LED will turn off and then turn back on. When disconnected from AWS the led will remain off.
 
