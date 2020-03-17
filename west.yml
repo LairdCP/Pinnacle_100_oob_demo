@@ -41,7 +41,7 @@ manifest:
       path: zephyr/ext/hal/lairdconnectivity
       revision: ae68879a75c1955000e2d7a810b066f40295a946
       remote: LairdInternal
-    - name: laird_connectivity_zephyr_boards
+    - name: zephyr_boards
       path: zephyr/boards/arm
       revision: de9470f2516837cd17e9da7ac850455deb5c411f
       remote: prodEng
