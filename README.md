@@ -6,19 +6,17 @@
 2. **[Resources](#resources)**
 3. **[Prerequisites](#prerequisites)**
 4. **[Setup](#setup)**
-5. **[Using the Demo](#using-the-demo)**<br>
-   [Signup and Login](#signup-and-login)<br>
-   [Scan for Devices](#scan-for-devices)<br>
-   [Device Information Page](#device-information-page)<br>
+5. **[Using the Demo](#using-the-demo)**  
+   [Signup and Login](#signup-and-login)  
+   [Scan for Devices](#scan-for-devices)  
+   [Device Information Page](#device-information-page)  
    [Provision](#provision)
 6. **[Cloud Data](#cloud-data)**
 7. **[LED behavior](#led-behavior)**
-8. **[Development](#development)**<br>
-   [Cloning](#cloning)<br>
-   [Preparing to Build](#prepare-to-build)<br>
-   [Building the Firmware](#building-the-firmware)<br>
-   [BLE Profiles](#ble-profiles)<br>
-   [Development and Debug](#development-and-debug)<br>
+8. **[Development](#development)**  
+   [Cloning and Building the Source](#cloning-and-building-the-source)  
+   [BLE Profiles](#ble-profiles)  
+   [Development and Debug](#development-and-debug)  
 
 ## Introduction
 
@@ -92,7 +90,7 @@ To set up the demo, follow these steps:
 
 If you do not already have an account, you must create one. An email address shall be used for the username.
 
-![Sign-up screen](docs/images/signup.png) ![Login screen](docs/images/login.png)<br>
+![Sign-up screen](docs/images/signup.png) ![Login screen](docs/images/login.png)  
 _Sign-up and Login screens_
 
 ### Scan for Devices
@@ -107,7 +105,7 @@ To scan for devices, follow these steps:
 1. Click **Find Pinnacle Devices**. Discovered devices will be displayed.
    > **Note:** The device name contains the last seven digits of the IMEI of the device so that you can easily identify the device to which you wish to connect. The IMEI is printed on the Pinnacle 100 Modem label.
 
-![Scan screen - devices found](docs/images/devices_found.png)<br>
+![Scan screen - devices found](docs/images/devices_found.png)  
 _Scan screen - devices found_
 
 2. Click on the desired device to connect to it.
@@ -118,7 +116,7 @@ The Device Information page acts as a home page for the device. It displays all 
 
 > **Note:** Provisioning is only allowed if the device is in an un-provisioned state.
 
-![Device Information screen](docs/images/device_info.png)<br>
+![Device Information screen](docs/images/device_info.png)  
 _Device Information screen_
 
 ### Provision
@@ -126,22 +124,22 @@ _Device Information screen_
 To provision the device click **Provision**.
 During provisioning, certificates are generated for the device and then programmed into the device over BLE.
 
-![Provision in process](docs/images/provision_progress.png)<br>
+![Provision in process](docs/images/provision_progress.png)  
 _Provision in process_
 
 Once sending provisioning data is complete, a prompt displays and you are directed back to the information page.
 
-![Provisioning is complete](docs/images/provision_success.png)<br>
+![Provisioning is complete](docs/images/provision_success.png)  
 _Provisioning is complete_
 
 Once the device is successfully connected to Amazon Web Services (AWS), the provisioning data is committed to non-volatile memory in the Pinnacle 100 modem. If the pinnacle 100 is then reset or power-cycled, it automatically re-connects to AWS. If the Pinnacle 100 is reset or power cycled before a successful AWS connection, you must re-provision the device.
 
-![Device commissioned and connected to AWS](docs/images/provisioned_and_commissioned.png)<br>
+![Device commissioned and connected to AWS](docs/images/provisioned_and_commissioned.png)  
 _Device commissioned and connected to AWS_
 
 > **Note:** You can decommission a device if you no longer want it to connect to AWS. Just click **Decommission**
 
-![Device decommissioned](docs/images/decommissioned.png)<br>
+![Device decommissioned](docs/images/decommissioned.png)  
 _Device decommissioned_
 
 ## Cloud Data
@@ -154,14 +152,14 @@ Log in with the same credentials used to login to the mobile app.
 
 Once logged in go to the devices page to see devices that have been added to the user account.
 
-![Web portal devices page](docs/images/device_portal.png)<br>
+![Web portal devices page](docs/images/device_portal.png)  
 _Web portal devices page_
 
 Each pinnacle 100 that is added is identified by its IMEI.
 
 Click on the device ID to display its data.
 
-![Device data](docs/images/cloud_device_data.png)<br>
+![Device data](docs/images/cloud_device_data.png)  
 _Device data_
 
 The Pinnacle 100 will report sensor data every 90 seconds. The user can select the check box next to any numeric value to see the value in the graph. The graph only displays live data that is logged while viewing the webpage. If the user leaves the web page and returns, the graph will start over with the most recent data that was received when returning to the page.
@@ -178,44 +176,9 @@ The Red LED (LED3) will blink when the Pinnacle is searching for a cellular netw
 
 ## Development
 
-### Cloning
+### Cloning and Building the Source
 
-This is a Zephyr based repository. To clone this repository properly use the `west` tool. To install west you will first need Python3.
-
-Install `west` using `pip3`:
-
-```
-# Linux
-pip3 install --user -U west
-
-# macOS (Terminal) and Windows (cmd.exe)
-pip3 install -U west
-```
-
-Once `west` is installed, clone this repository by:
-
-```
-west init -m https://github.com/LairdCP/Pinnacle_100_oob_demo.git
-west update
-```
-
-### Preparing to Build
-
-If this is your first time working with a Zephyr project on your PC you should follow the [Zephyr getting started guide](https://docs.zephyrproject.org/latest/getting_started/index.html#) to install all the tools.
-
-It is recommended to build this firmware with the [GNU Arm Embedded Toolchain: 8-2019-q3-update](https://developer.arm.com/tools-and-software/open-source-software/developer-tools/gnu-toolchain/gnu-rm/downloads).
-
-### Building the Firmware
-
-From the directory where you issued the `west init` and `west update` commands you can use the following command to build the firmware:
-
-```
-# Windows
-west build -b pinnacle_100_dvk -d oob_demo\build oob_demo\oob_demo
-
-# Linux and macOS
-west build -b pinnacle_100_dvk -d oob_demo/build oob_demo/oob_demo
-```
+This is a Zephyr based repository, **DO NOT** `git clone` this repo. To clone and build the project properly, please see the instructions in the [Pinnacle_100_OOB_Demo_Manifest](https://github.com/LairdCP/Pinnacle_100_OOB_Demo_Manifest) repository
 
 ### BLE Profiles
 
