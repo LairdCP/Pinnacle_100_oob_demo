@@ -31,6 +31,7 @@ LOG_MODULE_REGISTER(oob_lte);
 #include "ble_cellular_service.h"
 #include "led.h"
 #include "oob_common.h"
+#include "qrtc.h"
 
 #include "lte.h"
 
@@ -63,6 +64,8 @@ static void setup_iface_events(void);
 
 static void modemEventCallback(enum mdm_hl7800_event event, void *event_data);
 
+static void getLocalTimeFromModemWorkHandler(struct k_work *item);
+
 /******************************************************************************/
 /* Local Data Definitions                                                     */
 /******************************************************************************/
@@ -72,6 +75,9 @@ static struct mdm_receiver_context *mdm_rcvr;
 static struct dns_resolve_context *dns;
 static struct lte_status lteStatus;
 static lte_event_function_t lteCallbackFunction = NULL;
+struct k_work localTimeWork;
+static struct tm localTime;
+static s32_t localOffset;
 
 static struct mgmt_events iface_events[] = {
 	{ .event = NET_EVENT_DNS_SERVER_ADD,
@@ -93,6 +99,7 @@ int lteInit(void)
 	int rc = LTE_ERR_NONE;
 	mdm_hl7800_register_event_callback(modemEventCallback);
 	setup_iface_events();
+	k_work_init(&localTimeWork, getLocalTimeFromModemWorkHandler);
 
 	/* wait for network interface to be ready */
 	iface = net_if_get_default();
@@ -173,6 +180,7 @@ static void iface_ready_evt_handler(struct net_mgmt_event_callback *cb,
 	LTE_LOG_DBG("LTE is ready!");
 	led_turn_on(RED_LED3);
 	onLteEvent(LTE_EVT_READY);
+	k_work_submit(&localTimeWork);
 }
 
 static void iface_down_evt_handler(struct net_mgmt_event_callback *cb,
@@ -271,5 +279,19 @@ static void modemEventCallback(enum mdm_hl7800_event event, void *event_data)
 	default:
 		LOG_ERR("Unknown modem event");
 		break;
+	}
+}
+
+static void getLocalTimeFromModemWorkHandler(struct k_work *item)
+{
+	ARG_UNUSED(item);
+
+	if (!Qrtc_EpochWasSet()) {
+		s32_t status =
+			mdm_hl7800_get_local_time(&localTime, &localOffset);
+		if (status == 0) {
+			LOG_INF("Epoch set to %u",
+				Qrtc_SetEpochFromTm(&localTime, localOffset));
+		}
 	}
 }

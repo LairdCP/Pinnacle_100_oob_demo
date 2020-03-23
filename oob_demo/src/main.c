@@ -342,9 +342,11 @@ static void appStateWaitForModemDisconnect(void)
 {
 	MAIN_LOG_DBG("Wait for Disconnect state");
 
+#if CONFIG_MODEM_HL7800_PSM
 	while (lteIsReady()) {
 		k_sleep(WAIT_FOR_DISCONNECT_POLL_RATE_TICKS);
 	}
+#endif
 
 	if (appState == appStateWaitForModemDisconnect) {
 		appState = appStateWaitForLte;

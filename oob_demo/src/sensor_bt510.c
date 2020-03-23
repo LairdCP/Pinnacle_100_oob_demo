@@ -21,6 +21,7 @@ LOG_MODULE_REGISTER(sensor_bt510);
 
 #include "laird_bluetooth.h"
 #include "oob_common.h"
+#include "qrtc.h"
 #include "ad_find.h"
 #include "shadow_builder.h"
 #include "sensor_bt510.h"
@@ -85,7 +86,7 @@ typedef struct SensorTableEntry {
 	Bt510Rsp_t rsp;
 	s8_t rssi;
 	u8_t lastRecordType;
-	u32_t epoch;
+	u32_t rxEpoch;
 	bool whitelisted;
 } SensorTable_t;
 
@@ -225,6 +226,7 @@ static void AdEventHandler(AdHandle_t *pHandle, u8_t Rssi, u32_t Index)
 		memcpy(&sensorTable[Index].ad, pHandle->pPayload,
 		       sizeof(Bt510AdEvent_t));
 		sensorTable[Index].rssi = Rssi;
+		sensorTable[Index].rxEpoch = Qrtc_GetEpoch();
 
 		ShadowMaker(&sensorTable[Index]);
 	}
@@ -642,7 +644,7 @@ static void GatewayShadowMaker(void)
 		SensorTable_t *p = &sensorTable[i];
 		if (p->inUse) {
 			ShadowBuilder_AddSensorTableArrayEntry(
-				pMsg, p->addrString, p->epoch, p->whitelisted);
+				pMsg, p->addrString, p->rxEpoch, p->whitelisted);
 		}
 	}
 	ShadowBuilder_EndArray(pMsg);
