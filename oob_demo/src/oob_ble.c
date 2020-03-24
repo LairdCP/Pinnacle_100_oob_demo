@@ -657,9 +657,9 @@ static void connected(struct bt_conn *conn, u8_t err)
 		BLE_LOG_INF("Connected sensor: %s", log_strdup(addr));
 		bss_set_sensor_bt_addr(addr);
 
-		/* wait some time before discovering services.
+		/* Wait some time before discovering services.
 		* After a connection the BL654 Sensor disables
-		* charaterisitc notifications.
+		* characteristic notifications.
 		* We dont want that to interfere with use enabling
 		* notifications when we discover characteristics */
 		k_delayed_work_submit(

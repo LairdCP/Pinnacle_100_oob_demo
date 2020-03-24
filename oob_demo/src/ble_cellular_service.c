@@ -48,6 +48,7 @@ static struct bt_uuid_128 SINR_UUID = CELL_SVC_BASE_UUID_128(0x7c69);
 static struct bt_uuid_128 SLEEP_STATE_UUID = CELL_SVC_BASE_UUID_128(0x7c6a);
 static struct bt_uuid_128 RAT_UUID = CELL_SVC_BASE_UUID_128(0x7c6b);
 static struct bt_uuid_128 ICCID_UUID = CELL_SVC_BASE_UUID_128(0x7c6c);
+static struct bt_uuid_128 SERIAL_NUMBER_UUID = CELL_SVC_BASE_UUID_128(0x7c6d);
 
 struct ble_cellular_service {
 	char imei_value[MDM_HL7800_IMEI_SIZE];
@@ -60,6 +61,7 @@ struct ble_cellular_service {
 	u8_t sleep_state;
 	u8_t rat; /* radio access technology (CAT-M1 or NB1) */
 	u8_t iccid[MDM_HL7800_ICCID_SIZE];
+	char serial_number[MDM_HL7800_SERIAL_NUMBER_SIZE];
 
 	u16_t apn_index;
 	u16_t apn_username_index;
@@ -70,7 +72,6 @@ struct ble_cellular_service {
 	u16_t sinr_index;
 	u16_t sleep_state_index;
 	u16_t rat_index;
-	u16_t iccid_index;
 };
 
 struct ccc_table {
@@ -115,6 +116,9 @@ static ssize_t write_rat(struct bt_conn *conn, const struct bt_gatt_attr *attr,
 			 const void *buf, u16_t len, u16_t offset, u8_t flags);
 static ssize_t read_iccid(struct bt_conn *conn, const struct bt_gatt_attr *attr,
 			  void *buf, u16_t len, u16_t offset);
+static ssize_t read_serial_number(struct bt_conn *conn,
+				  const struct bt_gatt_attr *attr, void *buf,
+				  u16_t len, u16_t offset);
 static void apn_value_ccc_handler(const struct bt_gatt_attr *attr, u16_t value);
 static void apn_username_ccc_handler(const struct bt_gatt_attr *attr,
 				     u16_t value);
@@ -187,7 +191,10 @@ static struct bt_gatt_attr cell_attrs[] = {
 			       lbt_read_u8, write_rat, &bcs.rat),
 	LBT_GATT_CCC(rat),
 	BT_GATT_CHARACTERISTIC(&ICCID_UUID.uuid, BT_GATT_CHRC_READ,
-			       BT_GATT_PERM_READ, read_iccid, NULL, bcs.iccid)
+			       BT_GATT_PERM_READ, read_iccid, NULL, bcs.iccid),
+	BT_GATT_CHARACTERISTIC(&SERIAL_NUMBER_UUID.uuid, BT_GATT_CHRC_READ,
+			       BT_GATT_PERM_READ, read_serial_number, NULL,
+			       bcs.serial_number)
 };
 
 static struct bt_gatt_service cell_svc = BT_GATT_SERVICE(cell_attrs);
@@ -270,6 +277,12 @@ void cell_svc_set_iccid(const char *value)
 	memcpy(bcs.iccid, value, MDM_HL7800_ICCID_STRLEN);
 }
 
+void cell_svc_set_serial_number(const char *value)
+{
+	__ASSERT_NO_MSG(value != NULL);
+	memcpy(bcs.serial_number, value, MDM_HL7800_SERIAL_NUMBER_STRLEN);
+}
+
 void cell_svc_init()
 {
 	bt_gatt_service_register(&cell_svc);
@@ -293,8 +306,6 @@ void cell_svc_init()
 						    cell_attrs, gatt_size);
 	bcs.rat_index =
 		lbt_find_gatt_index(&RAT_UUID.uuid, cell_attrs, gatt_size);
-	bcs.iccid_index =
-		lbt_find_gatt_index(&ICCID_UUID.uuid, cell_attrs, gatt_size);
 }
 
 /******************************************************************************/
@@ -378,6 +389,14 @@ static ssize_t read_iccid(struct bt_conn *conn, const struct bt_gatt_attr *attr,
 {
 	return lbt_read_string(conn, attr, buf, len, offset,
 			       MDM_HL7800_ICCID_STRLEN);
+}
+
+static ssize_t read_serial_number(struct bt_conn *conn,
+				  const struct bt_gatt_attr *attr, void *buf,
+				  u16_t len, u16_t offset)
+{
+	return lbt_read_string(conn, attr, buf, len, offset,
+			       MDM_HL7800_SERIAL_NUMBER_STRLEN);
 }
 
 static void apn_value_ccc_handler(const struct bt_gatt_attr *attr, u16_t value)

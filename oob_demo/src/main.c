@@ -149,6 +149,7 @@ void main(void)
 	cell_svc_set_imei(lteInfo->IMEI);
 	cell_svc_set_fw_ver(lteInfo->radio_version);
 	cell_svc_set_iccid(lteInfo->ICCID);
+	cell_svc_set_serial_number(lteInfo->serialNumber);
 
 	bss_init();
 	bss_assign_connection_handler_getter(oob_ble_get_central_connection);

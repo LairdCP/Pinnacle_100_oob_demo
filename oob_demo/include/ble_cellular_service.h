@@ -41,6 +41,7 @@ void cell_svc_set_sinr(int value);
 void cell_svc_set_fw_ver(const char *ver);
 void cell_svc_set_rat(u8_t value);
 void cell_svc_set_iccid(const char *value);
+void cell_svc_set_serial_number(const char *value);
 
 #ifdef __cplusplus
 }
