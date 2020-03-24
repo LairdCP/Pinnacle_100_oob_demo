@@ -14,27 +14,30 @@
     {
       "label": "build",
       "type": "shell",
-      // Linux based command is not tested
       "command": "west build -b pinnacle_100_dvk -d build oob_demo",
       "windows": {
         "command": "west build -b pinnacle_100_dvk -d ${workspaceRoot}\\build ${workspaceRoot}\\oob_demo"
       },
-      "problemMatcher": []
+      "problemMatcher": {
+        "base": "$gcc",
+        "fileLocation": "absolute"
+      }
     },
     {
       "label": "re-build",
       "type": "shell",
-      // Linux based command is not tested
       "command": "west build -p -b pinnacle_100_dvk -d build oob_demo",
       "windows": {
         "command": "west build -p -b pinnacle_100_dvk -d ${workspaceRoot}\\build ${workspaceRoot}\\oob_demo"
       },
-      "problemMatcher": []
+      "problemMatcher": {
+        "base": "$gcc",
+        "fileLocation": "absolute"
+      }
     },
     {
       "label": "flash application",
       "type": "shell",
-      // Linux based command is not tested
       "command": "west flash -d build",
       "windows": {
         "command": "west flash -d ${workspaceRoot}\\build"
@@ -44,7 +47,6 @@
     {
       "label": "clean",
       "type": "shell",
-      // Linux based command is not tested
       "command": "west build -t clean -d build",
       "windows": {
         "command": "west build -t clean -d ${workspaceRoot}\\build"
@@ -54,7 +56,6 @@
     {
       "label": "pristine",
       "type": "shell",
-      // Linux based command is not tested
       "command": "west build -t pristine -d build",
       "windows": {
         "command": "west build -t pristine -d ${workspaceRoot}\\build"
