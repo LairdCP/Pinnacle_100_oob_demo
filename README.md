@@ -9,8 +9,11 @@
 5. **[Using the Demo](#using-the-demo)**  
    [Signup and Login](#signup-and-login)  
    [Scan for Devices](#scan-for-devices)  
-   [Device Information Page](#device-information-page)  
-   [Provision](#provision)
+   [Home Page](#home-page)  
+   [Provision](#provision)  
+   [Device Information](#device-information)  
+   [Cellular Settings](#cellular-settings)  
+   [Power Settings](#power-settings)  
 6. **[Cloud Data](#cloud-data)**
 7. **[LED behavior](#led-behavior)**
 8. **[Development](#development)**  
@@ -110,14 +113,14 @@ _Scan screen - devices found_
 
 2. Click on the desired device to connect to it.
 
-### Device Information Page
+### Home Page
 
-The Device Information page acts as a home page for the device. It displays all relevant device status information. The only available actions are the ability to provision or decommission the device.
+The home screen displays status information releated to the OOB demo. From the home page you can commission or decommission the device and navigate to other settings or info pages.
 
 > **Note:** Provisioning is only allowed if the device is in an un-provisioned state.
 
-![Device Information screen](docs/images/device_info.png)  
-_Device Information screen_
+![Home screen](docs/images/home.png)  
+_Home screen_
 
 ### Provision
 
@@ -141,6 +144,27 @@ _Device commissioned and connected to AWS_
 
 ![Device decommissioned](docs/images/decommissioned.png)  
 _Device decommissioned_
+
+### Device Information
+
+The device information page displays relevant version information of the connected Pinnacle 100 modem.
+
+![Device information](docs/images/device_info.png)  
+_Device info_
+
+### Cellular Settings
+
+The cellular settings page displays status information related to the cellular radio and allows the user to change the APN.
+
+![Cellular settings](docs/images/cell_settings.png)  
+_Cell settings_
+
+### Power Settings
+
+The power settings page displays the power supply voltage and allows the user to reboot the modem.
+
+![Power settings](docs/images/power_settings.png)  
+_Power settings_
 
 ## Cloud Data
 
