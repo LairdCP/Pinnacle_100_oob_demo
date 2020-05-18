@@ -27,7 +27,7 @@ The Pinnacle 100 out of box demo demonstrates gathering sensor data over BLE and
 One device that can be used for the demo is the BL654 BME280 sensor. This sensor measures temperature, humidity and pressure.  Another sensor that can be used with the demo is the BT510.  It records temperature and movement.  The BT510 can also be configured to detect a magnet (door open/closed).  
 The Pinnacle 100 will scan for the BL654 Sensor and connect to the first one it finds.  The Pinnacle 100 will gather data for the BT510 devices from advertisements without creating a connection.  The demo does not include code for configuring the BT510.  This must be done using the BT510 phone application. 
 The demo supports one BL654 Sensor and up to fifteen BT510 sensors.  The demo can be recompiled to remove support for either sensor.
-Using the Laird Pinnacle Connect mobile app, the user can provision the Pinnacle 100 to connect to AWS. Once connected to AWS, the Pinnacle will send sensor data (if a sensor is found) to the cloud every 90 seconds. The Pinnacle 100 uses LTE Cat-M1 Power Save Mode(PSM) to save power in this demo.
+Using the Laird Pinnacle Connect mobile app, the user can provision the Pinnacle 100 to connect to AWS. Once connected to AWS, the Pinnacle will send sensor data (if a sensor is found) to the cloud every 90 seconds. The Pinnacle 100 uses LTE Cat-M1 eDRX to save power in this demo.
 ```
                 XXXXX
               XXX   XXX

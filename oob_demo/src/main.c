@@ -75,9 +75,6 @@ static FwkMsgReceiver_t awsMsgReceiver;
 
 K_MSGQ_DEFINE(sensorQ, FWK_QUEUE_ENTRY_SIZE, 16, FWK_QUEUE_ALIGNMENT);
 
-static u64_t linkUpTime = 0;
-static u32_t linkUpDelta;
-
 /******************************************************************************/
 /* Local Function Prototypes                                                  */
 /******************************************************************************/
@@ -88,7 +85,6 @@ static void appStateAwsDisconnect(void);
 static void appStateAwsResolveServer(void);
 static void appStateWaitForLte(void);
 static void appStateCommissionDevice(void);
-static void appStateWaitForModemDisconnect(void);
 
 static void setAwsStatusWrapper(struct bt_conn *conn, enum aws_status status);
 
@@ -220,7 +216,6 @@ EXTERNED void Framework_AssertionHandler(char *file, int line)
 	softwareReset(FWK_DEFAULT_RESET_DELAY_MS);
 }
 
-
 /******************************************************************************/
 /* Local Function Definitions                                                 */
 /******************************************************************************/
@@ -275,7 +270,6 @@ static void lteEvent(enum lte_event event)
 {
 	switch (event) {
 	case LTE_EVT_READY:
-		k_uptime_delta_32(&linkUpTime);
 		k_sem_give(&lte_ready_sem);
 		break;
 	case LTE_EVT_DISCONNECTED:
@@ -320,38 +314,12 @@ static void appStateAwsSendSensorData(void)
 		awsMsgHandler();
 	}
 	LOG_INF("%u unsent messages", k_msgq_num_used_get(&sensorQ));
-
-	/* The purpose of this delay is to allow the UI (green LED) to be on
-	 * for a noticeable amount of time after data is sent. */
-	led_turn_on(GREEN_LED2);
-	k_sleep(SEND_DATA_TO_DISCONNECT_DELAY_TICKS);
-
-#if CONFIG_MODEM_HL7800_PSM
-	/* Disconnect from AWS now that the data has been sent. */
-	appState = appStateAwsDisconnect;
-#else
-	k_sleep(PSM_DISABLED_SEND_DATA_RATE_TICKS);
-#endif
-}
-
-/* The modem will periodically wake and sleep.
- * After data is sent wait for the modem to go to sleep.
- * Then wait for the modem to wakeup.
- * (The modem controls the timing of sending the data.)
- */
-static void appStateWaitForModemDisconnect(void)
-{
-	MAIN_LOG_DBG("Wait for Disconnect state");
-
-#if CONFIG_MODEM_HL7800_PSM
-	while (lteIsReady()) {
-		k_sleep(WAIT_FOR_DISCONNECT_POLL_RATE_TICKS);
+	if (rc < 0) {
+		appState = appStateAwsDisconnect;
+		return;
 	}
-#endif
 
-	if (appState == appStateWaitForModemDisconnect) {
-		appState = appStateWaitForLte;
-	}
+	k_sleep(SEND_DATA_RATE_TICKS);
 }
 
 /* This function will throw away sensor data if it can't send it. */
@@ -360,17 +328,7 @@ static void awsMsgHandler(void)
 	int rc = 0;
 	FwkMsg_t *pMsg;
 
-	linkUpDelta = 0;
-
 	while (rc == 0) {
-#if CONFIG_MODEM_HL7800_PSM
-		/* Only send data if we have enough time to send it */
-		linkUpDelta += k_uptime_delta_32(&linkUpTime);
-		if (linkUpDelta >= PSM_ENABLED_SEND_DATA_WINDOW_TICKS) {
-			LOG_INF("Send data window closed");
-			return;
-		}
-#endif
 		/* Remove sensor/gateway data from queue and send it to cloud. */
 		rc = -EINVAL;
 		pMsg = NULL;
@@ -418,6 +376,7 @@ static void blinkLedForDataSend(void)
 {
 	led_turn_off(GREEN_LED2);
 	k_sleep(DATA_SEND_LED_OFF_TIME_TICKS);
+	led_turn_on(GREEN_LED2);
 }
 
 /* Used to limit table generation to once per data interval. */
@@ -464,16 +423,21 @@ static void appStateAwsConnect(void)
 {
 	MAIN_LOG_DBG("AWS connect state");
 
-	if (!lteIsReady()) {
-		appState = appStateWaitForLte;
-		return;
-	}
-
 	if (awsConnect() != 0) {
 		MAIN_LOG_ERR("Could not connect to AWS");
 		setAwsStatusWrapper(oob_ble_get_central_connection(),
 				    AWS_STATUS_CONNECTION_ERR);
-		appState = appStateWaitForModemDisconnect;
+
+		/* wait some time before trying to re-connect */
+		k_sleep(WAIT_TIME_BEFORE_RETRY_TICKS);
+
+		/* if network is not ready after trying to connect, then wait for
+		 * network to be ready.
+		 */
+		if (!lteIsReady()) {
+			appState = appStateWaitForLte;
+		}
+
 		return;
 	}
 
@@ -503,7 +467,7 @@ static void appStateAwsDisconnect(void)
 	setAwsStatusWrapper(oob_ble_get_central_connection(),
 			    AWS_STATUS_DISCONNECTED);
 	awsDisconnect();
-	appState = appStateWaitForModemDisconnect;
+	appState = appStateAwsConnect;
 }
 
 static void appStateAwsResolveServer(void)
@@ -517,7 +481,8 @@ static void appStateAwsResolveServer(void)
 
 	if (awsGetServerAddr() != 0) {
 		MAIN_LOG_ERR("Could not get server address");
-		appState = appStateWaitForModemDisconnect;
+		/* wait some time before trying to resolve address again */
+		k_sleep(WAIT_TIME_BEFORE_RETRY_TICKS);
 		return;
 	}
 	resolveAwsServer = false;
@@ -747,7 +712,6 @@ static int shell_bootloader(const struct shell *shell, size_t argc, char **argv)
 }
 #endif /* CONFIG_REBOOT */
 #endif /* CONFIG_SHELL */
-
 
 #ifdef CONFIG_SHELL
 SHELL_STATIC_SUBCMD_SET_CREATE(
