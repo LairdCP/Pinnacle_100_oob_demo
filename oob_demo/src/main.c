@@ -56,6 +56,7 @@ static float humidityReading = 0;
 static float pressureReading = 0;
 static bool initShadow = true;
 static bool resolveAwsServer = true;
+static bool lteNeverConnected = true;
 
 static bool bUpdatedTemperature = false;
 static bool bUpdatedHumidity = false;
@@ -270,6 +271,7 @@ static void lteEvent(enum lte_event event)
 {
 	switch (event) {
 	case LTE_EVT_READY:
+		lteNeverConnected = false;
 		k_sem_give(&lte_ready_sem);
 		break;
 	case LTE_EVT_DISCONNECTED:
@@ -430,14 +432,6 @@ static void appStateAwsConnect(void)
 
 		/* wait some time before trying to re-connect */
 		k_sleep(WAIT_TIME_BEFORE_RETRY_TICKS);
-
-		/* if network is not ready after trying to connect, then wait for
-		 * network to be ready.
-		 */
-		if (!lteIsReady()) {
-			appState = appStateWaitForLte;
-		}
-
 		return;
 	}
 
@@ -474,11 +468,6 @@ static void appStateAwsResolveServer(void)
 {
 	MAIN_LOG_DBG("AWS resolve server state");
 
-	if (!lteIsReady()) {
-		appState = appStateWaitForLte;
-		return;
-	}
-
 	if (awsGetServerAddr() != 0) {
 		MAIN_LOG_ERR("Could not get server address");
 		/* wait some time before trying to resolve address again */
@@ -496,8 +485,8 @@ static void appStateWaitForLte(void)
 	setAwsStatusWrapper(oob_ble_get_central_connection(),
 			    AWS_STATUS_DISCONNECTED);
 
-	if (!lteIsReady()) {
-		/* Wait for LTE read evt */
+	if (lteNeverConnected && !lteIsReady()) {
+		/* Wait for LTE ready evt */
 		k_sem_reset(&lte_ready_sem);
 		k_sem_take(&lte_ready_sem, K_FOREVER);
 	}
