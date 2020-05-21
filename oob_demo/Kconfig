@@ -106,6 +106,32 @@ config DNS_RETRY_DELAY_SECONDS
     int "Number of seconds to wait between resolution attempts"
     default 5
 
+menu "Laird Connectivity LWM2M Demo Options"
+     depends on LWM2M
+
+config L2M2M_ENABLE_PSK_GENERATION
+    bool "Allow new PSK to be generated over Bluetooth"
+    default y
+
+config LWM2M_PSK_SIZE
+    int
+    default 16
+
+config LWM2M_CLIENT_ID_MAX_SIZE
+    int "Maximum size of the client id string"
+    default 32
+    range 1 64
+
+config LWM2M_PEER_URL_MAX_SIZE
+    int "Maximum size of the peer URL string"
+    default 128
+    range 1 512
+
+config LWM2M_CLIENT_ENDPOINT_MAX_SIZE
+    int "Maximum size of the client endpoint name"
+    default 64
+
+endmenu
 
 endif # USER_APPLICATION
 

@@ -1,6 +1,6 @@
 /**
  * @file nv.c
- * @brief Non-volitile storage for the app
+ * @brief Non-volatile storage for the app
  *
  * Copyright (c) 2020 Laird Connectivity
  *
@@ -15,7 +15,6 @@ LOG_MODULE_REGISTER(oob_nv);
 #define NV_LOG_WRN(...) LOG_WRN(__VA_ARGS__)
 #define NV_LOG_INF(...) LOG_INF(__VA_ARGS__)
 #define NV_LOG_DBG(...) LOG_DBG(__VA_ARGS__)
-
 
 /******************************************************************************/
 /* Includes                                                                   */
@@ -37,6 +36,7 @@ enum SETTING_ID {
 	SETTING_ID_AWS_ENDPOINT,
 	SETTING_ID_AWS_CLIENT_ID,
 	SETTING_ID_AWS_ROOT_CA,
+	SETTING_ID_LWM2M_CONFIG
 };
 
 /******************************************************************************/
@@ -189,4 +189,22 @@ int nvDeleteAwsClientId(void)
 int nvDeleteAwsRootCa(void)
 {
 	return nvs_delete(&fs, SETTING_ID_AWS_ROOT_CA);
+}
+
+int nvInitLwm2mConfig(void *data, void *init_value, u16_t size)
+{
+	int rc = nvs_read(&fs, SETTING_ID_LWM2M_CONFIG, data, size);
+	if (rc != size) {
+		memcpy(data, init_value, size);
+		rc = nvs_write(&fs, SETTING_ID_LWM2M_CONFIG, data, size);
+		if (rc != size) {
+			NV_LOG_ERR("Error writing LWM2M config (%d)", rc);
+		}
+	}
+	return rc;
+}
+
+int nvWriteLwm2mConfig(void *data, u16_t size)
+{
+	return nvs_write(&fs, SETTING_ID_LWM2M_CONFIG, data, size);
 }

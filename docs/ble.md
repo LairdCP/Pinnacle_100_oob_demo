@@ -112,3 +112,18 @@ Characteristics:
 | ------------------------ | ------------------------------------ | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Sensor State             | ab010001-5bab-471a-9074-a0ae3937c70c | read/notify | One Byte. BME280 Sensor State: 0 - Finding device, 1 - Finding service, 2 - Finding Temperature Characteristic, 3 - Finding Humidity Characteristic, 4 - Finding pressure characteristic, 5 - Connected and Configured |
 | Sensor Bluetooth Address | ab010002-5bab-471a-9074-a0ae3937c70c | read/notify | String representation of address of connected BME280 sensor.                                                                                                                                                           |
+
+## LwM2M Client Configuration Profile
+
+This service is only available for the LwM2M example.
+
+### UUID: 07fd0000-d320-768c-364a-c405518f724c
+
+Characteristics:
+
+| Name                     | UUID                                 | Properties  | Description                                                                                  |
+| ------------------------ | ------------------------------------ | ----------- | -------------------------------------------------------------------------------------------- |
+| Generate                 | 07fd0001-d320-768c-364a-c405518f724c | write       | One Byte. Write zero to set to defaults.  Write non-zero to generate new PSK.                |
+| Client PSK               | 07fd0002-d320-768c-364a-c405518f724c | read        | 16 bytes.  Private shared key used to talk to Leshan server.                                 | 
+| Client ID                | 07fd0003-d320-768c-364a-c405518f724c | read/write  | Maximum of a 32 character string.  Unique ID associated with PSK.                            | 
+| Peer URL                 | 07fd0004-d320-768c-364a-c405518f724c | read/write  | Maximum of a 128 character string.  URL of Leshan server.                                    |

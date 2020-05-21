@@ -6,7 +6,10 @@
     "options": {
       "shell": {
         "executable": "cmd.exe",
-        "args": ["/d", "/c"]
+        "args": [
+          "/d",
+          "/c"
+        ]
       }
     }
   },
@@ -70,6 +73,18 @@
         "command": "west build -t menuconfig"
       },
       "problemMatcher": []
-    }
+    },
+    {
+      "label": "build-lwm2m",
+      "type": "shell",
+      "command": "west build -b pinnacle_100_dvk -d build oob_demo -DCONF_FILE=prj.conf;overlay_lwm2m_dtls.conf",
+      "windows": {
+        "command": "west build -b pinnacle_100_dvk -d ${workspaceRoot}\\build ${workspaceRoot}\\oob_demo -- -DCONF_FILE=${workspaceRoot}\\oob_demo\\prj.conf;${workspaceRoot}\\oob_demo\\overlay_lwm2m_dtls.conf"
+      },
+      "problemMatcher": {
+        "base": "$gcc",
+        "fileLocation": "absolute"
+      }
+    },
   ]
 }

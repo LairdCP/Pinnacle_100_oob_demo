@@ -46,6 +46,10 @@ LOG_MODULE_REGISTER(oob_main);
 #include "sensor_table.h"
 #include "laird_utility_macros.h"
 
+#ifdef CONFIG_LWM2M
+#include "lwm2m_client.h"
+#endif
+
 /******************************************************************************/
 /* Global Constants, Macros and Type Definitions                              */
 /******************************************************************************/
@@ -98,6 +102,8 @@ static void appStateAwsDisconnect(void);
 static void appStateAwsResolveServer(void);
 static void appStateWaitForLte(void);
 static void appStateCommissionDevice(void);
+static void appStateStartup(void);
+static void appStateLteConnectedAws(void);
 
 static void appSetNextState(app_state_function_t next);
 static const char *getAppStateString(app_state_function_t state);
@@ -113,6 +119,12 @@ static void ledPatternCompleteCallback(void);
 static void sensorUpdated(u8_t sensor, s32_t reading);
 static void lteEvent(enum lte_event event);
 static void softwareReset(u32_t DelayMs);
+
+#ifdef CONFIG_LWM2M
+static void appStateInitLwm2mClient(void);
+static void appStateLwm2m(void);
+static void lwm2mMsgHandler(void);
+#endif
 
 /******************************************************************************/
 /* Global Function Definitions                                                */
@@ -191,11 +203,8 @@ void main(void)
 	appReady = true;
 	printk("\n!!!!!!!! App is ready! !!!!!!!!\n");
 
-	if (commissioned && setAwsCredentials() == 0) {
-		appSetNextState(appStateWaitForLte);
-	} else {
-		appSetNextState(appStateCommissionDevice);
-	}
+	appSetNextState(appStateStartup);
+
 	led_register_pattern_complete_function(GREEN_LED2,
 					       ledPatternCompleteCallback);
 	dataSendLedPattern.on_time = DATA_SEND_LED_ON_TIME_TICKS;
@@ -369,13 +378,19 @@ static void appStateAwsSendSensorData(void)
 
 static const char *getAppStateString(app_state_function_t state)
 {
+#ifdef CONFIG_LWM2M
+	IF_RETURN_STRING(state, appStateLwm2m);
+	IF_RETURN_STRING(state, appStateInitLwm2mClient);
+#endif
 	IF_RETURN_STRING(state, appStateAwsSendSensorData);
 	IF_RETURN_STRING(state, appStateAwsConnect);
 	IF_RETURN_STRING(state, appStateAwsDisconnect);
 	IF_RETURN_STRING(state, appStateWaitForLte);
+	IF_RETURN_STRING(state, appStateLteConnectedAws);
 	IF_RETURN_STRING(state, appStateAwsResolveServer);
 	IF_RETURN_STRING(state, appStateAwsInitShadow);
 	IF_RETURN_STRING(state, appStateCommissionDevice);
+	IF_RETURN_STRING(state, appStateStartup);
 	return "appStateUnknown";
 }
 
@@ -384,6 +399,19 @@ static void appSetNextState(app_state_function_t next)
 	MAIN_LOG_DBG("%s->%s", getAppStateString(appState),
 		     getAppStateString(next));
 	appState = next;
+}
+
+static void appStateStartup(void)
+{
+#ifdef CONFIG_LWM2M
+	appSetNextState(appStateWaitForLte);
+#else
+	if (commissioned && setAwsCredentials() == 0) {
+		appSetNextState(appStateWaitForLte);
+	} else {
+		appSetNextState(appStateCommissionDevice);
+	}
+#endif
 }
 
 /* This function will throw away sensor data if it can't send it. */
@@ -578,6 +606,15 @@ static void appStateWaitForLte(void)
 		k_sem_take(&lte_ready_sem, K_FOREVER);
 	}
 
+#ifdef CONFIG_LWM2M
+	appSetNextState(appStateInitLwm2mClient);
+#else
+	appSetNextState(appStateLteConnectedAws);
+#endif
+}
+
+static void appStateLteConnectedAws(void)
+{
 	if (resolveAwsServer && areCertsSet()) {
 		appSetNextState(appStateAwsResolveServer);
 	} else if (areCertsSet()) {
@@ -586,6 +623,52 @@ static void appStateWaitForLte(void)
 		appSetNextState(appStateCommissionDevice);
 	}
 }
+
+#ifdef CONFIG_LWM2M
+static void appStateInitLwm2mClient(void)
+{
+	lwm2m_client_init();
+	appSetNextState(appStateLwm2m);
+}
+
+static void appStateLwm2m(void)
+{
+	lwm2mMsgHandler();
+}
+
+static void lwm2mMsgHandler(void)
+{
+	int rc = 0;
+	FwkMsg_t *pMsg;
+
+	while (rc == 0) {
+		/* Remove sensor/gateway data from queue and send it to cloud. */
+		rc = -EINVAL;
+		pMsg = NULL;
+		Framework_Receive(awsMsgReceiver.pQueue, &pMsg, K_FOREVER);
+		if (pMsg == NULL) {
+			return;
+		}
+
+		switch (pMsg->header.msgCode) {
+		case FMC_BL654_SENSOR_EVENT: {
+			BL654SensorMsg_t *pBmeMsg = (BL654SensorMsg_t *)pMsg;
+			rc = lwm2m_set_bl654_sensor_data(
+				pBmeMsg->temperatureC, pBmeMsg->humidityPercent,
+				pBmeMsg->pressurePa);
+		} break;
+
+		default:
+			break;
+		}
+		BufferPool_Free(pMsg);
+
+		if (rc != 0) {
+			MAIN_LOG_ERR("Could not send data (%d)", rc);
+		}
+	}
+}
+#endif
 
 static int setAwsCredentials(void)
 {

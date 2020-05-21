@@ -42,6 +42,8 @@ int nvDeleteAwsClientId(void);
 int nvStoreAwsRootCa(u8_t *cert, u16_t size);
 int nvReadAwsRootCa(u8_t *cert, u16_t size);
 int nvDeleteAwsRootCa(void);
+int nvInitLwm2mConfig(void *data, void *init_value, u16_t size);
+int nvWriteLwm2mConfig(void *data, u16_t size);
 
 #ifdef __cplusplus
 }
