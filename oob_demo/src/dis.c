@@ -93,6 +93,21 @@ void dis_initialize(void)
 	bt_gatt_service_register(&dis_gatt);
 }
 
+const char *dis_get_model_number(void)
+{
+	return MODEL_NUMBER;
+}
+
+const char *dis_get_software_revision(void)
+{
+	return SOFTWARE_REVISION;
+}
+
+const char *dis_get_manufacturer_name(void)
+{
+	return MANUFACTURER_NAME;
+}
+
 /******************************************************************************/
 /* Local Function Definitions                                                 */
 /******************************************************************************/
