@@ -7,9 +7,6 @@ target_sources(app PRIVATE ${app_sources})
 include_directories(${CMAKE_SOURCE_DIR}/include)
 zephyr_include_directories(${ZEPHYR_BASE}/drivers/modem)
 
-FILE(GLOB fwk_sources ./../../modules/framework/source/*.c)
-target_sources(app PRIVATE ${fwk_sources})
-include_directories(${CMAKE_SOURCE_DIR}/../../modules/framework/include)
 include_directories(${CMAKE_SOURCE_DIR}/framework_config)
 
 include_directories(${CMAKE_SOURCE_DIR}/../../modules/jsmn)

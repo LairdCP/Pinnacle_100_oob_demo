@@ -1,18 +1,19 @@
 /**
- * @file ad_find.h
- * @brief Find TLV (type, length, value) structures in advertisements.
+ * @file sensor_cmd.h
+ * @brief JSON command strings for Laird BT sensors.
  *
  * Copyright (c) 2020 Laird Connectivity
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-#ifndef __AD_FIND_H__
-#define __AD_FIND_H__
+#ifndef __SENSOR_CMD_H__
+#define __SENSOR_CMD_H__
 
 /******************************************************************************/
 /* Includes                                                                   */
 /******************************************************************************/
 #include <zephyr/types.h>
+#include <stddef.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -21,38 +22,30 @@ extern "C" {
 /******************************************************************************/
 /* Global Constants, Macros and Type Definitions                              */
 /******************************************************************************/
-#define BT_DATA_INVALID 0x00
 
-typedef struct AdHandle {
-	u8_t *pPayload;
-	size_t size;
-} AdHandle_t;
+/* prefix + AWS string + suffix => JSON command that can be sent to sensor */
+extern const char SENSOR_CMD_SET_PREFIX[];
+extern const char SENSOR_CMD_SUFFIX[];
+extern const char SENSOR_CMD_DUMP[];
+extern const char SENSOR_CMD_REBOOT[];
+extern const char SENSOR_CMD_ACCEPTED_SUB_STR[];
+extern const char SENSOR_CMD_DEFAULT_QUERY[];
+extern const char SENSOR_CMD_SET_CONFIG_VERSION_1[];
+extern const char SENSOR_CMD_SET_EPOCH_FMT_STR[];
+
+#define SENSOR_CMD_MAX_EPOCH_SIZE 10
 
 /******************************************************************************/
 /* Global Function Prototypes                                                 */
 /******************************************************************************/
-/**
- * @brief Finds a TLV in advertisement
- *
- * @param pAdv pointer to advertisement data
- * @param Length length of the data
- * @param Type1 type of TLV to find
- * @param Type2 second type of tlv to find, set to BT_DATA_INVALID when not used.
- * Parsing will stop on first type found.
- *
- * @retval AdHandle_t - pointer to payload if found otherwise NULL
- */
-AdHandle_t AdFind_Type(u8_t *pAdv, size_t Length, u8_t Type1, u8_t Type2);
 
 /**
- * @brief Finds a short or complete name in advertisement.
- *
- * @retval AdHandle_t pointer to payload if found otherwise NULL
+ * @brief Returns true if the sensor configuration requires a reset
  */
-AdHandle_t AdFind_Name(u8_t *pAdv, size_t Length);
+bool SensorCmd_RequiresReset(char *pCmd);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* __AD_FIND_H__ */
+#endif /* __SENSOR_CMD_H__ */

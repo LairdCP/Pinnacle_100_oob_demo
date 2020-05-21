@@ -18,7 +18,7 @@
 #include <bluetooth/uuid.h>
 #include <bluetooth/gatt.h>
 #include <misc/byteorder.h>
-#include "Framework.h"
+#include "FrameworkIncludes.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -30,6 +30,9 @@ extern "C" {
 /* Callback function for passing sensor data */
 typedef void (*sensor_updated_function_t)(u8_t sensor, s32_t reading);
 
+/******************************************************************************/
+/* Global Function Prototypes                                                 */
+/******************************************************************************/
 /* Function for initialising the BLE portion of the OOB demo */
 void oob_ble_initialise(const char *imei);
 

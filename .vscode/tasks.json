@@ -61,6 +61,15 @@
         "command": "west build -t pristine -d ${workspaceRoot}\\build"
       },
       "problemMatcher": []
+    },
+    {
+      "label": "configurator",
+      "type": "shell",
+      "command": "west build -t menuconfig",
+      "windows": {
+        "command": "west build -t menuconfig"
+      },
+      "problemMatcher": []
     }
   ]
 }

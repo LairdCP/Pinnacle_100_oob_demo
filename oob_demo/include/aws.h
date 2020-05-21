@@ -80,6 +80,8 @@ static const unsigned char aws_root_ca[] =
 
 #define GATEWAY_TOPIC NULL
 
+#define CLEAR_SHADOW_ON_STARTUP 0
+
 struct shadow_persistent_values {
 	const char *firmware_version;
 	const char *os_version;
@@ -146,7 +148,11 @@ int awsSetShadowAppFirmwareVersion(const char *version);
 int awsPublishBl654SensorData(float temperature, float humidity,
 			      float pressure);
 int awsPublishPinnacleData(int radioRssi, int radioSinr);
-int awsSubscribe(void);
+int awsSubscribe(u8_t *topic, u8_t subscribe);
+int awsGetShadow(void);
+int awsGetAcceptedSubscribe(void);
+int awsGetAcceptedUnsub(void);
+void awsGenerateGatewayTopics(const char *imei);
 
 #ifdef __cplusplus
 }
