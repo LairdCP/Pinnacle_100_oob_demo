@@ -27,6 +27,7 @@ LOG_MODULE_REGISTER(oob_aws);
 
 #include "oob_common.h"
 #include "sensor_gateway_parser.h"
+#include "dns.h"
 #include "aws.h"
 
 /******************************************************************************/
@@ -76,7 +77,6 @@ static int nfds;
 
 static bool connected = false;
 
-static struct addrinfo server_addr;
 static struct addrinfo *saddr;
 
 static sec_tag_t m_sec_tags[] = { APP_CA_CERT_TAG, APP_DEVICE_CERT_TAG };
@@ -151,26 +151,12 @@ void awsSetRootCa(const char *cred)
 
 int awsGetServerAddr(void)
 {
-	int rc, dns_retries;
-
-	server_addr.ai_family = AF_INET;
-	server_addr.ai_socktype = SOCK_STREAM;
-	dns_retries = DNS_RETRIES;
-	do {
-		AWS_LOG_DBG("Get AWS server address");
-		rc = getaddrinfo(server_endpoint, SERVER_PORT_STR, &server_addr,
-				 &saddr);
-		if (rc != 0) {
-			AWS_LOG_ERR("Get AWS server addr (%d)", rc);
-			k_sleep(K_SECONDS(5));
-		}
-		dns_retries--;
-	} while (rc != 0 && dns_retries != 0);
-	if (rc != 0) {
-		AWS_LOG_ERR("Unable to resolve '%s'", server_endpoint);
-	}
-
-	return rc;
+	struct addrinfo hints = {
+		.ai_family = AF_INET,
+		.ai_socktype = SOCK_STREAM,
+	};
+	return dns_resolve_server_addr(server_endpoint, SERVER_PORT_STR, &hints,
+				       &saddr);
 }
 
 int awsConnect()

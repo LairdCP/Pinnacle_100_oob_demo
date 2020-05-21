@@ -57,7 +57,6 @@ static const unsigned char aws_root_ca[] =
 
 #define PUBLISH_TIMEOUT_TICKS K_SECONDS(5)
 
-#define DNS_RETRIES 1
 #define APP_CONNECT_TRIES 1
 
 #define APP_MQTT_BUFFER_SIZE 1024
