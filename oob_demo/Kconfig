@@ -136,6 +136,5 @@ endmenu
 endif # USER_APPLICATION
 
 source "../modules/framework/Kconfig"
-source "../modules/lib/tinycbor/Kconfig"
 
 source "Kconfig.zephyr"
