@@ -17,11 +17,15 @@
 /******************************************************************************/
 #include <zephyr/types.h>
 #include <stddef.h>
+#include <bluetooth/bluetooth.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+/******************************************************************************/
+/* Global Function Prototypes                                                 */
+/******************************************************************************/
 /**
  * @brief Starts scanning if the number of stop requests is zero.
  */
@@ -39,6 +43,15 @@ void bt_scan_stop(void);
  * stop.
  */
 void bt_scan_resume(void);
+
+/******************************************************************************/
+/* If desired, override weak implementation in application                    */
+/******************************************************************************/
+/**
+ * @brief This callback is triggered after receiving BLE adverts.
+ */
+void bt_scan_adv_handler(const bt_addr_le_t *addr, s8_t rssi, u8_t type,
+			 struct net_buf_simple *ad);
 
 #ifdef __cplusplus
 }

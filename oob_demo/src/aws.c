@@ -26,9 +26,12 @@ LOG_MODULE_REGISTER(oob_aws);
 #include <kernel.h>
 
 #include "oob_common.h"
-#include "sensor_gateway_parser.h"
 #include "dns.h"
 #include "aws.h"
+
+#if CONFIG_BLUEGRASS
+#include "sensor_gateway_parser.h"
+#endif
 
 /******************************************************************************/
 /* Local Constant, Macro and Type Definitions                                 */
@@ -43,10 +46,10 @@ LOG_MODULE_REGISTER(oob_aws);
 #define CONVERSION_MAX_STR_LEN 10
 
 struct topics {
-	u8_t update[CONFIG_TOPIC_MAX_SIZE];
-	u8_t update_delta[CONFIG_TOPIC_MAX_SIZE];
-	u8_t get[CONFIG_TOPIC_MAX_SIZE];
-	u8_t get_accepted[CONFIG_TOPIC_MAX_SIZE];
+	u8_t update[CONFIG_AWS_TOPIC_MAX_SIZE];
+	u8_t update_delta[CONFIG_AWS_TOPIC_MAX_SIZE];
+	u8_t get[CONFIG_AWS_TOPIC_MAX_SIZE];
+	u8_t get_accepted[CONFIG_AWS_TOPIC_MAX_SIZE];
 };
 
 /******************************************************************************/
@@ -61,7 +64,9 @@ K_SEM_DEFINE(send_ack_sem, 0, 1);
 /* Buffers for MQTT client. */
 static u8_t rx_buffer[APP_MQTT_BUFFER_SIZE];
 static u8_t tx_buffer[APP_MQTT_BUFFER_SIZE];
+#if CONFIG_BLUEGRASS
 static u8_t subscription_buffer[CONFIG_SHADOW_IN_MAX_SIZE];
+#endif
 
 /* mqtt client id */
 static char *mqtt_client_id;
@@ -530,6 +535,8 @@ static void mqtt_evt_handler(struct mqtt_client *const client,
 static int subscription_handler(struct mqtt_client *const client,
 				const struct mqtt_evt *evt)
 {
+	int rc = 0;
+#if CONFIG_BLUEGRASS
 	u16_t id = evt->param.publish.message_id;
 	u32_t length = evt->param.publish.message.payload.len;
 	u8_t qos = evt->param.publish.message.topic.qos;
@@ -542,7 +549,7 @@ static int subscription_handler(struct mqtt_client *const client,
 	}
 
 	memset(subscription_buffer, 0, CONFIG_SHADOW_IN_MAX_SIZE);
-	int rc = mqtt_read_publish_payload(client, subscription_buffer, length);
+	rc = mqtt_read_publish_payload(client, subscription_buffer, length);
 	if (rc == length) {
 #if JSON_LOG_MQTT_RX_DATA
 		print_json("MQTT Read data", rc, subscription_buffer);
@@ -557,6 +564,7 @@ static int subscription_handler(struct mqtt_client *const client,
 			AWS_LOG_ERR("QOS 2 not supported");
 		}
 	}
+#endif
 	return rc;
 }
 

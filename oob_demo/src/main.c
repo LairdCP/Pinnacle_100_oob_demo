@@ -42,19 +42,14 @@ LOG_MODULE_REGISTER(oob_main);
 #include "dis.h"
 #include "bootloader.h"
 #include "FrameworkIncludes.h"
-#include "sensor_task.h"
-#include "sensor_table.h"
 #include "laird_utility_macros.h"
+
+#if CONFIG_BLUEGRASS
+#include "bluegrass.h"
+#endif
 
 #ifdef CONFIG_LWM2M
 #include "lwm2m_client.h"
-#endif
-
-/******************************************************************************/
-/* Global Constants, Macros and Type Definitions                              */
-/******************************************************************************/
-#ifndef CONFIG_USE_SINGLE_AWS_TOPIC
-#define CONFIG_USE_SINGLE_AWS_TOPIC 0
 #endif
 
 /******************************************************************************/
@@ -74,9 +69,6 @@ static bool bUpdatedTemperature = false;
 static bool bUpdatedHumidity = false;
 static bool bUpdatedPressure = false;
 
-static bool gatewaySubscribed;
-static bool subscribedToGetAccepted;
-static bool getShadowProcessed;
 static bool commissioned;
 static bool allowCommissioning = false;
 static bool appReady = false;
@@ -114,7 +106,6 @@ static void initializeAwsMsgReceiver(void);
 static void awsMsgHandler(s32_t *blinks);
 static void awsSvcEvent(enum aws_svc_event event);
 static int setAwsCredentials(void);
-static void generateShadowRequestMsg(void);
 static void ledPatternCompleteCallback(void);
 static void sensorUpdated(u8_t sensor, s32_t reading);
 static void lteEvent(enum lte_event event);
@@ -137,8 +128,10 @@ void main(void)
 	led_init();
 
 	Framework_Initialize();
-	SensorTask_Initialize();
 	initializeAwsMsgReceiver();
+#if CONFIG_BLUEGRASS
+	Bluegrass_Initialize(awsMsgReceiver.pQueue);
+#endif
 
 	/* Init NV storage */
 	rc = nvInit();
@@ -327,29 +320,9 @@ static void appStateAwsSendSensorData(void)
 	setAwsStatusWrapper(oob_ble_get_central_connection(),
 			    AWS_STATUS_CONNECTED);
 
-	if (!CONFIG_USE_SINGLE_AWS_TOPIC) {
-		if (!subscribedToGetAccepted) {
-			rc = awsGetAcceptedSubscribe();
-			if (rc == 0) {
-				subscribedToGetAccepted = true;
-			}
-		}
-
-		if (!getShadowProcessed) {
-			awsGetShadow();
-		}
-
-		if (getShadowProcessed && !gatewaySubscribed) {
-			rc = awsSubscribe(GATEWAY_TOPIC, true);
-			if (rc == 0) {
-				gatewaySubscribed = true;
-			}
-		}
-
-		if (getShadowProcessed && gatewaySubscribed) {
-			generateShadowRequestMsg();
-		}
-	}
+#if CONFIG_BLUEGRASS
+	Bluegrass_GatewaySubscriptionHandler();
+#endif
 
 	awsMsgHandler(&blinks);
 
@@ -423,9 +396,7 @@ static void awsMsgHandler(s32_t *blinks)
 
 	while (rc == 0) {
 		/* Remove sensor/gateway data from queue and send it to cloud.
-		 * Block if there are not any messages, but periodically send RSSI to
-		 * keep AWS connection open.
-		 */
+		Block if there are not any messages. */
 		rc = -EINVAL;
 		pMsg = NULL;
 		Framework_Receive(awsMsgReceiver.pQueue, &pMsg,
@@ -435,6 +406,9 @@ static void awsMsgHandler(s32_t *blinks)
 		}
 		freeMsg = true;
 
+		/* BL654 data is sent to the gateway topic.  If Bluegrass is enabled,
+		then sensor data (BT510) is sent to individual topics.  It also allows
+		AWS to configure sensors. */
 		switch (pMsg->header.msgCode) {
 		case FMC_BL654_SENSOR_EVENT: {
 			BL654SensorMsg_t *pBmeMsg = (BL654SensorMsg_t *)pMsg;
@@ -443,48 +417,19 @@ static void awsMsgHandler(s32_t *blinks)
 						       pBmeMsg->pressurePa);
 		} break;
 
-		case FMC_SENSOR_PUBLISH: {
-			JsonMsg_t *pJsonMsg = (JsonMsg_t *)pMsg;
-			rc = awsSendData(pJsonMsg->buffer,
-					 CONFIG_USE_SINGLE_AWS_TOPIC ?
-						 GATEWAY_TOPIC :
-						 pJsonMsg->topic);
-		} break;
-
-		case FMC_GATEWAY_OUT: {
-			JsonMsg_t *pJsonMsg = (JsonMsg_t *)pMsg;
-			rc = awsSendData(pJsonMsg->buffer, GATEWAY_TOPIC);
-			if (rc == 0) {
-				FRAMEWORK_MSG_CREATE_AND_SEND(
-					FWK_ID_AWS, FWK_ID_SENSOR_TASK,
-					FMC_SHADOW_ACK);
-			}
-		} break;
-
-		case FMC_SUBSCRIBE: {
-			SubscribeMsg_t *pSubMsg = (SubscribeMsg_t *)pMsg;
-			rc = awsSubscribe(pSubMsg->topic, pSubMsg->subscribe);
-			pSubMsg->success = (rc == 0);
-			FRAMEWORK_MSG_REPLY(pSubMsg, FMC_SUBSCRIBE_ACK);
-			freeMsg = false;
-		} break;
-
-		case FMC_AWS_GET_ACCEPTED_RECEIVED: {
-			rc = awsGetAcceptedUnsub();
-			if (rc == 0) {
-				getShadowProcessed = true;
-			}
-		} break;
-
 		default:
+#if CONFIG_BLUEGRASS
+			rc = Bluegrass_MsgHandler(pMsg, &freeMsg);
+#endif
 			break;
 		}
+
 		if (freeMsg) {
 			BufferPool_Free(pMsg);
 		}
 
 		if (rc != 0) {
-			MAIN_LOG_ERR("Could not send data (%d)", rc);
+			MAIN_LOG_ERR("AWS queue processing error (%d)", rc);
 		} else {
 			*blinks += 1;
 		}
@@ -498,21 +443,6 @@ static void ledPatternCompleteCallback(void)
 		led_turn_on(GREEN_LED2);
 	} else {
 		led_turn_off(GREEN_LED2);
-	}
-}
-
-/* Used to limit table generation to once per data interval. */
-static void generateShadowRequestMsg(void)
-{
-	FwkMsg_t *pMsg = BufferPool_Take(sizeof(FwkMsg_t));
-	if (pMsg != NULL) {
-		pMsg->header.msgCode = FMC_SHADOW_REQUEST;
-		pMsg->header.txId = FWK_ID_RESERVED;
-		pMsg->header.rxId = FWK_ID_SENSOR_TASK;
-		FRAMEWORK_MSG_SEND(pMsg);
-		/* Allow sensor task to process message immediately
-		 * (if system is idle). */
-		k_yield();
 	}
 }
 
@@ -578,7 +508,9 @@ static void appStateAwsDisconnect(void)
 	setAwsStatusWrapper(oob_ble_get_central_connection(),
 			    AWS_STATUS_DISCONNECTED);
 	awsDisconnect();
-	gatewaySubscribed = false;
+#if AWS_SENSOR
+	Bluegrass_DisconnectedCallback();
+#endif
 	FRAMEWORK_MSG_CREATE_AND_BROADCAST(FWK_ID_RESERVED,
 					   FMC_AWS_DISCONNECTED);
 	appSetNextState(appStateAwsConnect);
@@ -748,6 +680,19 @@ static void softwareReset(u32_t DelayMs)
 	power_reboot_module(REBOOT_TYPE_NORMAL);
 #endif
 }
+
+#if !CONFIG_BLUEGRASS
+EXTERNED void bt_scan_adv_handler(const bt_addr_le_t *addr, s8_t rssi,
+				  u8_t type, struct net_buf_simple *ad)
+{
+#if CONFIG_SCAN_FOR_BL654_SENSOR
+	Ad_t adv;
+	adv.len = ad->len;
+	memcpy(adv.data, ad->data, MIN(MAX_AD_SIZE, ad->len));
+	bl654_sensor_adv_handler(addr, rssi, type, &adv);
+#endif
+}
+#endif
 
 /******************************************************************************/
 /* Shell                                                                      */

@@ -155,17 +155,16 @@ static void GatewayParser(const char *pTopic, const char *pJson)
 	if (jsonIndex != 0) {
 		/* Backup one token to get the number of arrays (sensors). */
 		int expectedSensors = tokens[jsonIndex - 1].size;
-		if (expectedSensors < CONFIG_SENSOR_TABLE_SIZE) {
-			ParseArray(pJson, expectedSensors);
-		}
+		ParseArray(pJson, expectedSensors);
 	} else {
 		LOG_WRN("Could not find sensor array");
-		if (getAcceptedTopic) {
-			/* Assume that the list wasn't present. */
-			FRAMEWORK_MSG_CREATE_AND_SEND(
-				FWK_ID_AWS, FWK_ID_AWS,
-				FMC_AWS_GET_ACCEPTED_RECEIVED);
-		}
+	}
+
+	/* Once this has been processed (after reset) we can unsubscribe.
+	The list may be empty. */
+	if (getAcceptedTopic) {
+		FRAMEWORK_MSG_CREATE_AND_SEND(FWK_ID_AWS, FWK_ID_AWS,
+					      FMC_AWS_GET_ACCEPTED_RECEIVED);
 	}
 }
 
@@ -284,10 +283,11 @@ static void ParseArray(const char *pJson, int ExpectedSensors)
 		return;
 	}
 
+	size_t maxSensors = MIN(ExpectedSensors, CONFIG_SENSOR_TABLE_SIZE);
 	int sensorsFound = 0;
 	size_t i = jsonIndex;
 	while (((i + CHILD_ARRAY_SIZE) < tokensFound) &&
-	       (sensorsFound < ExpectedSensors)) {
+	       (sensorsFound < maxSensors)) {
 		int addrLength = tokens[i].end - tokens[i].start;
 		if ((tokens[i + CHILD_ARRAY_INDEX].type == JSMN_ARRAY) &&
 		    (tokens[i + CHILD_ARRAY_INDEX].size == CHILD_ARRAY_SIZE) &&
@@ -320,13 +320,8 @@ static void ParseArray(const char *pJson, int ExpectedSensors)
 	pMsg->sensorCount = sensorsFound;
 	FRAMEWORK_MSG_SEND(pMsg);
 
-	LOG_INF("Found %d sensors in desired list from AWS", sensorsFound);
-
-	/* Once this has been processed (after reset) we can unsubscribe. */
-	if (getAcceptedTopic) {
-		FRAMEWORK_MSG_CREATE_AND_SEND(FWK_ID_AWS, FWK_ID_AWS,
-					      FMC_AWS_GET_ACCEPTED_RECEIVED);
-	}
+	LOG_INF("Processed %d of %d sensors in desired list from AWS",
+		sensorsFound, ExpectedSensors);
 }
 
 static void ParseEventArray(const char *pTopic, const char *pJson)
@@ -338,18 +333,18 @@ static void ParseEventArray(const char *pTopic, const char *pJson)
 	}
 
 	/* If the event log isn't found a message still needs to be sent. */
-	int expectedLogs = 0;
+	int expectedLogs = tokens[jsonIndex - 1].size;
+	int maxLogs = 0;
 	if (jsonIndex == 0) {
 		LOG_DBG("Could not find event log");
 	} else {
-		expectedLogs = MIN(tokens[jsonIndex - 1].size,
-				   CONFIG_SENSOR_LOG_MAX_SIZE);
+		maxLogs = MIN(expectedLogs, CONFIG_SENSOR_LOG_MAX_SIZE);
 	}
 
 	/* 1st and 3rd items are hex. {"eventLog":[["01",466280,"0899"]] */
 	size_t i = jsonIndex;
 	size_t j = 0;
-	while (((i + CHILD_ARRAY_SIZE) < tokensFound) && (j < expectedLogs)) {
+	while (((i + CHILD_ARRAY_SIZE) < tokensFound) && (j < maxLogs)) {
 		if ((tokens[i + CHILD_ARRAY_INDEX].type == JSMN_ARRAY) &&
 		    (tokens[i + CHILD_ARRAY_INDEX].size == CHILD_ARRAY_SIZE) &&
 		    (tokens[i + RECORD_TYPE_INDEX].type == JSMN_STRING) &&
@@ -380,7 +375,8 @@ static void ParseEventArray(const char *pTopic, const char *pJson)
 	       SENSOR_ADDR_STR_LEN);
 	pMsg->header.msgCode = FMC_SENSOR_SHADOW_INIT;
 	pMsg->header.rxId = FWK_ID_SENSOR_TASK;
-	LOG_INF("Found %d sensor events in shadow", pMsg->eventCount);
+	LOG_INF("Processed %d of %d sensor events in shadow", pMsg->eventCount,
+		expectedLogs);
 	FRAMEWORK_MSG_SEND(pMsg);
 }
 
