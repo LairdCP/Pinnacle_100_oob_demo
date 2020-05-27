@@ -29,7 +29,7 @@ LOG_MODULE_REGISTER(oob_lte);
 #include <drivers/modem/modem_receiver.h>
 #include <drivers/modem/hl7800.h>
 #include "ble_cellular_service.h"
-#include "led.h"
+#include "led_configuration.h"
 #include "oob_common.h"
 #include "qrtc.h"
 

@@ -30,7 +30,7 @@ LOG_MODULE_REGISTER(oob_ble);
 #include "ble_cellular_service.h"
 #include "ble_sensor_service.h"
 #include "laird_utility_macros.h"
-#include "led.h"
+#include "led_configuration.h"
 #include "ad_find.h"
 #include "bt_scan.h"
 #include "oob_common.h"

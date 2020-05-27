@@ -29,7 +29,7 @@ LOG_MODULE_REGISTER(oob_main);
 #include <shell/shell_uart.h>
 
 #include "oob_common.h"
-#include "led.h"
+#include "led_configuration.h"
 #include "oob_ble.h"
 #include "lte.h"
 #include "aws.h"
@@ -117,6 +117,8 @@ static void appStateLwm2m(void);
 static void lwm2mMsgHandler(void);
 #endif
 
+static void configure_leds(void);
+
 /******************************************************************************/
 /* Global Function Definitions                                                */
 /******************************************************************************/
@@ -124,8 +126,7 @@ void main(void)
 {
 	int rc;
 
-	/* init LEDS */
-	led_init();
+	configure_leds();
 
 	Framework_Initialize();
 	initializeAwsMsgReceiver();
@@ -693,6 +694,17 @@ EXTERNED void bt_scan_adv_handler(const bt_addr_le_t *addr, s8_t rssi,
 #endif
 }
 #endif
+
+static void configure_leds(void)
+{
+	struct led_configuration c[] = {
+		{ BLUE_LED1, LED1_DEV, LED1, LED_ACTIVE_HIGH },
+		{ GREEN_LED2, LED2_DEV, LED2, LED_ACTIVE_HIGH },
+		{ RED_LED3, LED3_DEV, LED3, LED_ACTIVE_HIGH },
+		{ GREEN_LED4, LED4_DEV, LED4, LED_ACTIVE_HIGH }
+	};
+	led_init(c, ARRAY_SIZE(c));
+}
 
 /******************************************************************************/
 /* Shell                                                                      */

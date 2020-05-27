@@ -145,5 +145,6 @@ endmenu # LWM2M options
 endif # USER_APPLICATION
 
 source "../modules/framework/Kconfig"
+source "../modules/synergy/Kconfig"
 
 source "Kconfig.zephyr"
