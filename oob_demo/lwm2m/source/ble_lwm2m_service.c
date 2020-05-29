@@ -137,7 +137,7 @@ static ssize_t generate_psk(struct bt_conn *conn,
 			    const struct bt_gatt_attr *attr, const void *buf,
 			    u16_t len, u16_t offset, u8_t flags)
 {
-#if CONFIG_L2M2M_ENABLE_PSK_GENERATION
+#if CONFIG_LWM2M_ENABLE_PSK_GENERATION
 	u8_t value = *((u8_t *)buf);
 	if (value) {
 		LOG_WRN("Generating a new LwM2M PSK");

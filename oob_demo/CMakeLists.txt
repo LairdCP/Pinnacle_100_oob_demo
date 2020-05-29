@@ -18,3 +18,9 @@ target_sources(app PRIVATE
     ${CMAKE_SOURCE_DIR}/lwm2m/source/ble_lwm2m_service.c
 )
 endif()
+
+if(CONFIG_BLUEGRASS)
+include_directories(${CMAKE_SOURCE_DIR}/bluegrass/include)
+FILE(GLOB bluegrass_sources ${CMAKE_SOURCE_DIR}/bluegrass/source/*.c)
+target_sources(app PRIVATE ${bluegrass_sources})
+endif()

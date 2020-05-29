@@ -56,7 +56,7 @@ typedef struct SubscribeMsg {
 	bool success; /* used for ack only */
 	size_t tableIndex;
 	size_t length;
-	char topic[CONFIG_TOPIC_MAX_SIZE];
+	char topic[CONFIG_AWS_TOPIC_MAX_SIZE];
 } SubscribeMsg_t;
 
 typedef struct SensorCmdMsg {

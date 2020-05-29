@@ -30,12 +30,14 @@ LOG_MODULE_REGISTER(oob_ble);
 #include "ble_cellular_service.h"
 #include "ble_sensor_service.h"
 #include "laird_utility_macros.h"
-#include "led.h"
-#include "sensor_table.h"
+#include "led_configuration.h"
 #include "ad_find.h"
 #include "bt_scan.h"
-#include "sensor_task.h"
 #include "oob_common.h"
+
+#if CONFIG_BLUEGRASS
+#include "sensor_task.h"
+#endif
 
 /******************************************************************************/
 /* Local Constant, Macro and Type Definitions                                 */
@@ -604,10 +606,12 @@ static void connected(struct bt_conn *conn, u8_t err)
 
 	bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
 
+#if CONFIG_BLUEGRASS
 	/* Bug 16488: Zephyr 2.x - If possible, remove this coupling. */
 	if (conn == SensorTask_GetConn()) {
 		return;
 	}
+#endif
 
 	if (err) {
 		goto fail;

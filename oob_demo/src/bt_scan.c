@@ -8,14 +8,12 @@
  */
 
 #include <logging/log.h>
-#define LOG_LEVEL LOG_LEVEL_DBG
+#define LOG_LEVEL LOG_LEVEL_INF
 LOG_MODULE_REGISTER(bt_scan);
 
 /******************************************************************************/
 /* Includes                                                                   */
 /******************************************************************************/
-#include <bluetooth/bluetooth.h>
-
 #include "FrameworkIncludes.h"
 #include "bt_scan.h"
 
@@ -41,12 +39,6 @@ static atomic_t scanning = ATOMIC_INIT(0);
 K_SEM_DEFINE(stop_requests, 0, CONFIG_BT_MAX_CONN);
 
 /******************************************************************************/
-/* Local Function Prototypes                                                  */
-/******************************************************************************/
-static void adv_handler(const bt_addr_le_t *addr, s8_t rssi, u8_t type,
-			struct net_buf_simple *ad);
-
-/******************************************************************************/
 /* Global Function Definitions                                                */
 /******************************************************************************/
 void bt_scan_start(void)
@@ -56,7 +48,8 @@ void bt_scan_start(void)
 	}
 
 	if (atomic_cas(&scanning, 0, 1)) {
-		int err = bt_le_scan_start(BT_LE_SCAN_CONFIG1, adv_handler);
+		int err = bt_le_scan_start(BT_LE_SCAN_CONFIG1,
+					   bt_scan_adv_handler);
 		LOG_DBG("%d", err);
 	}
 }
@@ -79,26 +72,12 @@ void bt_scan_resume(void)
 /******************************************************************************/
 /* Local Function Definitions                                                 */
 /******************************************************************************/
-/* This callback is triggered after receiving BLE adverts */
-static void adv_handler(const bt_addr_le_t *addr, s8_t rssi, u8_t type,
-			struct net_buf_simple *ad)
+__weak void bt_scan_adv_handler(const bt_addr_le_t *addr, s8_t rssi, u8_t type,
+				struct net_buf_simple *ad)
 {
-	/* Send a message so we can process ads in Sensor Task context
-	 * (so that the BLE RX task isn't blocked). */
-	AdvMsg_t *pMsg = BufferPool_Take(sizeof(AdvMsg_t));
-	if (pMsg == NULL) {
-		return;
-	}
-
-	pMsg->header.msgCode = FMC_ADV;
-	pMsg->header.rxId = FWK_ID_SENSOR_TASK;
-
-	pMsg->rssi = rssi;
-	pMsg->type = type;
-	pMsg->ad.len = ad->len;
-	memcpy(&pMsg->addr, addr, sizeof(bt_addr_le_t));
-	memcpy(pMsg->ad.data, ad->data, MIN(MAX_AD_SIZE, ad->len));
-	/* If the sensor task queue is full, then delete the message
-	 * because the system is too busy to process it. */
-	FRAMEWORK_MSG_SEND(pMsg);
+	char bt_addr[BT_ADDR_LE_STR_LEN];
+	memset(bt_addr, 0, BT_ADDR_LE_STR_LEN);
+	bt_addr_le_to_str(addr, bt_addr, BT_ADDR_LE_STR_LEN);
+	LOG_DBG("Advert from %s RSSI: %d TYPE: %d", bt_addr, rssi, type);
+	LOG_HEXDUMP_DBG(ad->data, ad->len, "LwM2M Client PSK (hex)");
 }
