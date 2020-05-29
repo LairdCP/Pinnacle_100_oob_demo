@@ -5,6 +5,19 @@
 The advertisement includes the UUID of the Cellular Profile. The complete local name is included in the scan response.
 The complete local name is "Pinnacle 100 OOB-1234567", where "1234567" are replaced with the last 7 digits of the IMEI.
 
+## Device Information Service
+
+### UUID: 180a
+
+Characteristics:
+
+| Name               | UUID | Properties  | Description                           | 
+| ------------------ | ---- | ----------- | ------------------------------------- | 
+| Model Number       | 2a24 | read        | Model number of the device (string)   | 
+| Firmware Revision  | 2a26 | read        | Zephyr RTOS version (string)          | 
+| Software Revision  | 2a28 | read        | OOB demo application version (string) | 
+| Manufacturer       | 2a29 | read        | Manufacturer (string)                 | 
+
 ## AWS Provisioning Profile
 
 ### UUID: ae7203f0-55a9-4a14-bcd7-7c59f234a9b5
