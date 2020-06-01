@@ -509,7 +509,7 @@ static void appStateAwsDisconnect(void)
 	setAwsStatusWrapper(oob_ble_get_central_connection(),
 			    AWS_STATUS_DISCONNECTED);
 	awsDisconnect();
-#if AWS_SENSOR
+#if CONFIG_BLUEGRASS
 	Bluegrass_DisconnectedCallback();
 #endif
 	FRAMEWORK_MSG_CREATE_AND_BROADCAST(FWK_ID_RESERVED,
