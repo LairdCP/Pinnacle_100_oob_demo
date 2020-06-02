@@ -10,6 +10,7 @@
 #include <logging/log.h>
 #define LOG_LEVEL LOG_LEVEL_DBG
 LOG_MODULE_REGISTER(sensor_table);
+#define FWK_FNAME "sensor_table"
 
 #define VERBOSE_AD_LOG(...)
 
@@ -100,6 +101,9 @@ typedef struct SensorEntry {
 	u32_t rxEpoch;
 	bool whitelisted;
 	bool subscribed;
+	bool getAcceptedSubscribed;
+	bool shadowInitReceived;
+	u64_t subscriptionDispatchTime;
 	u32_t ttl;
 	void *pCmd;
 	void *pSecondCmd;
@@ -110,8 +114,6 @@ typedef struct SensorEntry {
 	u32_t adCount;
 	u16_t lastFlags;
 	SensorLog_t *pLog;
-	bool getAcceptedSubscribed;
-	bool shadowInitReceived;
 } SensorEntry_t;
 
 #define RSSI_UNKNOWN -127
@@ -119,13 +121,12 @@ typedef struct SensorEntry {
 /******************************************************************************/
 /* Local Data Definitions                                                     */
 /******************************************************************************/
-static bool whitelistProcessed;
-static u32_t gatewayShadowUpdateRequests;
 static size_t tableCount;
 static SensorEntry_t sensorTable[CONFIG_SENSOR_TABLE_SIZE];
 static char queryCmd[CONFIG_SENSOR_QUERY_CMD_MAX_SIZE];
 static u64_t ttlUptime;
 static struct lte_status *pLte;
+static bool allowGatewayShadowGeneration;
 
 /******************************************************************************/
 /* Local Function Prototypes                                                  */
@@ -165,8 +166,7 @@ static void ShadowRspHandler(JsonMsg_t *pMsg, SensorEntry_t *pEntry);
 static void ShadowFlagHandler(JsonMsg_t *pMsg, SensorEntry_t *pEntry);
 static void ShadowLogHandler(JsonMsg_t *pMsg, SensorEntry_t *pEntry);
 static void ShadowSpecialHandler(JsonMsg_t *pMsg, SensorEntry_t *pEntry);
-static void GatewayShadowMaker(void);
-static void TimeToLiveHandler(void);
+static void GatewayShadowMaker(bool WhitelistProcessed);
 
 static char *MangleKey(const char *pKey, const char *pName);
 static u32_t WhitelistByAddress(const char *pAddrString, bool NextState);
@@ -255,11 +255,11 @@ void SensorTable_ProcessWhitelistRequest(SensorWhitelistMsg_t *pMsg)
 		changed += WhitelistByAddress(pMsg->sensors[i].addrString,
 					      pMsg->sensors[i].whitelist);
 	}
+	LOG_DBG("Whitelist setting changed for %u sensors", changed);
 
-	/* This is used to filter out duplicate requests from the cloud. */
+	/* Filter out deltas due to timestamp changing. */
 	if (changed > 0) {
-		whitelistProcessed = true;
-		gatewayShadowUpdateRequests += 1;
+		GatewayShadowMaker(true);
 	}
 }
 
@@ -353,26 +353,14 @@ void SensorTable_AckConfigRequest(SensorCmdMsg_t *pMsg)
 	BufferPool_Free(pMsg);
 }
 
-void SensorTable_GenerateGatewayShadow(void)
+void SensorTable_EnableGatewayShadowGeneration(void)
 {
-	if (gatewayShadowUpdateRequests > 0) {
-		GatewayShadowMaker();
-	}
+	allowGatewayShadowGeneration = true;
 }
 
-/* Using a count for the update requests prevents an update from getting lost
- * between the time it takes to generate a request and receive the ack.
- * The same data may be sent one extra time.
- */
-void SensorTable_GatewayShadowAck(void)
+void SensorTable_DisableGatewayShadowGeneration(void)
 {
-	if (gatewayShadowUpdateRequests == 1) {
-		gatewayShadowUpdateRequests = 0;
-	} else if (gatewayShadowUpdateRequests > 1) {
-		gatewayShadowUpdateRequests = 1;
-	}
-
-	TimeToLiveHandler();
+	allowGatewayShadowGeneration = false;
 }
 
 void SensorTable_UnsubscribeAll(void)
@@ -390,9 +378,12 @@ void SensorTable_SubscriptionHandler(void)
 	size_t i;
 	for (i = 0; i < CONFIG_SENSOR_TABLE_SIZE; i++) {
 		SensorEntry_t *pEntry = &sensorTable[i];
-		/* Waiting until AD and RSP are valid makes things easier for config */
+		/* Waiting until AD and RSP are valid makes things easier for config.
+		When subscribing there must be a delay to allow AWS to configure
+		permissions. */
 		if (pEntry->validAd && pEntry->validRsp &&
-		    (pEntry->whitelisted != pEntry->subscribed)) {
+		    (pEntry->whitelisted != pEntry->subscribed) &&
+		    (pEntry->subscriptionDispatchTime <= k_uptime_get())) {
 			SubscribeMsg_t *pMsg =
 				BufferPool_Take(sizeof(SubscribeMsg_t));
 			if (pMsg != NULL) {
@@ -420,7 +411,8 @@ void SensorTable_GetAcceptedSubscriptionHandler(void)
 	for (i = 0; i < CONFIG_SENSOR_TABLE_SIZE; i++) {
 		SensorEntry_t *pEntry = &sensorTable[i];
 		if (pEntry->subscribed && !pEntry->getAcceptedSubscribed &&
-		    !pEntry->shadowInitReceived) {
+		    !pEntry->shadowInitReceived &&
+		    (pEntry->subscriptionDispatchTime <= k_uptime_get())) {
 			SubscribeMsg_t *pMsg =
 				BufferPool_Take(sizeof(SubscribeMsg_t));
 			if (pMsg != NULL) {
@@ -536,6 +528,26 @@ void SensorTable_CreateShadowFromDumpResponse(FwkBufMsg_t *pRsp,
 	FRAMEWORK_MSG_SEND(pMsg);
 }
 
+void SensorTable_TimeToLiveHandler(void)
+{
+	u64_t deltaS = k_uptime_delta(&ttlUptime) / K_SECONDS(1);
+	size_t i;
+	for (i = 0; i < CONFIG_SENSOR_TABLE_SIZE; i++) {
+		SensorEntry_t *p = &sensorTable[i];
+		if (p->inUse) {
+			p->ttl = (p->ttl > deltaS) ? (p->ttl - deltaS) : 0;
+			if (p->ttl == 0 && !p->whitelisted) {
+				LOG_WRN("Removing '%s' sensor %s from table",
+					log_strdup(p->name),
+					log_strdup(p->addrString));
+				ClearEntry(p);
+				FRAMEWORK_DEBUG_ASSERT(tableCount > 0);
+				tableCount -= 1;
+			}
+		}
+	}
+}
+
 /******************************************************************************/
 /* Local Function Definitions                                                 */
 /******************************************************************************/
@@ -589,10 +601,11 @@ static void AdEventHandler(AdHandle_t *pHandle, s8_t Rssi, u32_t Index)
 		memcpy(&sensorTable[Index].ad, pHandle->pPayload,
 		       sizeof(Bt510AdEvent_t));
 		sensorTable[Index].rssi = Rssi;
+		/* If event occurs before epoch is set, then AWS shows ~1970. */
 		sensorTable[Index].rxEpoch = Qrtc_GetEpoch();
 		ShadowMaker(&sensorTable[Index]);
 		/* The cloud uses the RX epoch (in the table) for filtering. */
-		gatewayShadowUpdateRequests += 1;
+		GatewayShadowMaker(false);
 	}
 }
 
@@ -693,7 +706,6 @@ static size_t AddByAddress(const bt_addr_t *pAddr)
 static void AddEntry(SensorEntry_t *pEntry, const bt_addr_t *pAddr, s8_t Rssi)
 {
 	tableCount += 1;
-	gatewayShadowUpdateRequests += 1;
 	pEntry->inUse = true;
 	pEntry->rssi = Rssi;
 	memcpy(pEntry->ad.addr.val, pAddr->val, sizeof(bt_addr_t));
@@ -705,6 +717,7 @@ static void AddEntry(SensorEntry_t *pEntry, const bt_addr_t *pAddr, s8_t Rssi)
 	SensorAddrToString(pEntry);
 	LOG_INF("Added BT510 sensor %s '%s' RSSI: %d", pEntry->addrString,
 		pEntry->name, pEntry->rssi);
+	GatewayShadowMaker(false);
 }
 
 /* Find index of advertiser's address in the sensor table */
@@ -1080,9 +1093,13 @@ static void SensorAddrToString(SensorEntry_t *pEntry)
 	FRAMEWORK_ASSERT(count == SENSOR_ADDR_STR_LEN);
 }
 
-static void GatewayShadowMaker(void)
+static void GatewayShadowMaker(bool WhitelistProcessed)
 {
 	if (CONFIG_USE_SINGLE_AWS_TOPIC) {
+		return;
+	}
+
+	if (!allowGatewayShadowGeneration) {
 		return;
 	}
 
@@ -1099,8 +1116,7 @@ static void GatewayShadowMaker(void)
 	ShadowBuilder_StartGroup(pMsg, "state");
 	/* Setting the desired group to null lets the cloud know
 	 * that its request was processed. */
-	if (whitelistProcessed) {
-		whitelistProcessed = false;
+	if (WhitelistProcessed) {
 		ShadowBuilder_AddNull(pMsg, "desired");
 	}
 	ShadowBuilder_StartGroup(pMsg, "reported");
@@ -1158,6 +1174,10 @@ static void Whitelist(SensorEntry_t *pEntry, bool NextState)
 {
 	pEntry->whitelisted = NextState;
 	if (pEntry->whitelisted) {
+		pEntry->subscribed = false;
+		pEntry->getAcceptedSubscribed = false;
+		pEntry->subscriptionDispatchTime =
+			k_uptime_get() + K_SECONDS(30);
 		if (pEntry->pLog == NULL) {
 			pEntry->pLog =
 				SensorLog_Allocate(CONFIG_SENSOR_LOG_MAX_SIZE);
@@ -1280,30 +1300,6 @@ static u32_t GetFlag(u16_t Value, u32_t Mask, u8_t Position)
 {
 	u32_t v = (u32_t)Value & (Mask << Position);
 	return (v >> Position);
-}
-
-/* If a sensor hasn't been seen (its ttl count is zero),
- * then remove it from the table.  Don't remove sensor
- * if it has been whitelisted by AWS.
- */
-static void TimeToLiveHandler(void)
-{
-	u64_t deltaS = k_uptime_delta(&ttlUptime) / K_SECONDS(1);
-	size_t i;
-	for (i = 0; i < CONFIG_SENSOR_TABLE_SIZE; i++) {
-		SensorEntry_t *p = &sensorTable[i];
-		if (p->inUse) {
-			p->ttl = (p->ttl > deltaS) ? (p->ttl - deltaS) : 0;
-			if (p->ttl == 0 && !p->whitelisted) {
-				LOG_WRN("Removing '%s' sensor %s from table",
-					log_strdup(p->name),
-					log_strdup(p->addrString));
-				ClearEntry(p);
-				FRAMEWORK_DEBUG_ASSERT(tableCount > 0);
-				tableCount -= 1;
-			}
-		}
-	}
 }
 
 static void PublishToGetAccepted(SensorEntry_t *pEntry)

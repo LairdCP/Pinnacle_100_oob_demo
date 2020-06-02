@@ -42,11 +42,6 @@ extern "C" {
 void Bluegrass_Initialize(FwkQueue_t *pQ);
 
 /**
- * @brief Subscribes to AWS topics for Gateway functions.
- */
-void Bluegrass_GatewaySubscriptionHandler(void);
-
-/**
  * @brief Subscribe and post to topics for individual sensors.  Post sensor
  * list to gateway topic.
  *
@@ -56,6 +51,12 @@ void Bluegrass_GatewaySubscriptionHandler(void);
  * @retval zero for success
  */
 int Bluegrass_MsgHandler(FwkMsg_t *pMsg, bool *pFreeMsg);
+
+/**
+ * @brief The gateway shadow must be processed on connection.
+ * The delta topic must be subscribed to.
+ */
+void Bluegrass_ConnectedCallback(void);
 
 /**
  * @brief The sensor task can discard data if the connection to AWS is lost.

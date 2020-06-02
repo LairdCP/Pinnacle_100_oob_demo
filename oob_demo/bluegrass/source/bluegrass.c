@@ -33,12 +33,15 @@ LOG_MODULE_REGISTER(bluegrass);
 static bool gatewaySubscribed;
 static bool subscribedToGetAccepted;
 static bool getShadowProcessed;
+static struct k_timer gatewayInitTimer;
 static FwkQueue_t *pMsgQueue;
 
 /******************************************************************************/
 /* Local Function Prototypes                                                  */
 /******************************************************************************/
-static void GenerateShadowRequestMsg(void);
+static void StartGatewayInitTimer(void);
+static void GatewayInitTimerCallbackIsr(struct k_timer *timer_id);
+static int GatewaySubscriptionHandler(void);
 
 /******************************************************************************/
 /* Global Function Definitions                                                */
@@ -47,38 +50,11 @@ void Bluegrass_Initialize(FwkQueue_t *pQ)
 {
 	pMsgQueue = pQ;
 	SensorTask_Initialize();
+	k_timer_init(&gatewayInitTimer, GatewayInitTimerCallbackIsr, NULL);
 }
 
-void Bluegrass_GatewaySubscriptionHandler(void)
-{
-	int rc;
-
-	if (!CONFIG_USE_SINGLE_AWS_TOPIC) {
-		if (!subscribedToGetAccepted) {
-			rc = awsGetAcceptedSubscribe();
-			if (rc == 0) {
-				subscribedToGetAccepted = true;
-			}
-		}
-
-		if (!getShadowProcessed) {
-			awsGetShadow();
-		}
-
-		if (getShadowProcessed && !gatewaySubscribed) {
-			rc = awsSubscribe(GATEWAY_TOPIC, true);
-			if (rc == 0) {
-				gatewaySubscribed = true;
-			}
-		}
-
-		if (getShadowProcessed && gatewaySubscribed) {
-			GenerateShadowRequestMsg();
-		}
-	}
-}
-
-/* This function will throw away sensor data if it can't send it. */
+/* This caller of this function will throw away sensor data
+if it cant' be sent */
 int Bluegrass_MsgHandler(FwkMsg_t *pMsg, bool *pFreeMsg)
 {
 	int rc = -EINVAL;
@@ -94,10 +70,6 @@ int Bluegrass_MsgHandler(FwkMsg_t *pMsg, bool *pFreeMsg)
 	case FMC_GATEWAY_OUT: {
 		JsonMsg_t *pJsonMsg = (JsonMsg_t *)pMsg;
 		rc = awsSendData(pJsonMsg->buffer, GATEWAY_TOPIC);
-		if (rc == 0) {
-			FRAMEWORK_MSG_CREATE_AND_SEND(
-				FWK_ID_AWS, FWK_ID_SENSOR_TASK, FMC_SHADOW_ACK);
-		}
 	} break;
 
 	case FMC_SUBSCRIBE: {
@@ -115,6 +87,10 @@ int Bluegrass_MsgHandler(FwkMsg_t *pMsg, bool *pFreeMsg)
 		}
 	} break;
 
+	case FMC_GATEWAY_INIT:
+		rc = GatewaySubscriptionHandler();
+		break;
+
 	default:
 		break;
 	}
@@ -122,9 +98,18 @@ int Bluegrass_MsgHandler(FwkMsg_t *pMsg, bool *pFreeMsg)
 	return rc;
 }
 
+void Bluegrass_ConnectedCallback(void)
+{
+	StartGatewayInitTimer();
+	FRAMEWORK_MSG_CREATE_AND_BROADCAST(FWK_ID_RESERVED, FMC_AWS_CONNECTED);
+}
+
 void Bluegrass_DisconnectedCallback(void)
 {
 	gatewaySubscribed = false;
+	SensorTable_DisableGatewayShadowGeneration();
+	FRAMEWORK_MSG_CREATE_AND_BROADCAST(FWK_ID_RESERVED,
+					   FMC_AWS_DISCONNECTED);
 }
 
 /* Override weak implementation in bt_scan module */
@@ -152,17 +137,51 @@ EXTERNED void bt_scan_adv_handler(const bt_addr_le_t *addr, s8_t rssi,
 /******************************************************************************/
 /* Local Function Definitions                                                 */
 /******************************************************************************/
-/* Used to limit table generation to once per data interval. */
-static void GenerateShadowRequestMsg(void)
+static int GatewaySubscriptionHandler(void)
 {
-	FwkMsg_t *pMsg = BufferPool_Take(sizeof(FwkMsg_t));
-	if (pMsg != NULL) {
-		pMsg->header.msgCode = FMC_SHADOW_REQUEST;
-		pMsg->header.txId = FWK_ID_RESERVED;
-		pMsg->header.rxId = FWK_ID_SENSOR_TASK;
-		FRAMEWORK_MSG_SEND(pMsg);
-		/* Allow sensor task to process message immediately
-         * (if system is idle). */
-		k_yield();
+	int rc = 0;
+
+	if (CONFIG_USE_SINGLE_AWS_TOPIC) {
+		return rc;
 	}
+
+	if (!subscribedToGetAccepted) {
+		rc = awsGetAcceptedSubscribe();
+		if (rc == 0) {
+			subscribedToGetAccepted = true;
+		}
+	}
+
+	if (!getShadowProcessed) {
+		rc = awsGetShadow();
+	}
+
+	if (getShadowProcessed && !gatewaySubscribed) {
+		rc = awsSubscribe(GATEWAY_TOPIC, true);
+		if (rc == 0) {
+			gatewaySubscribed = true;
+			SensorTable_EnableGatewayShadowGeneration();
+		}
+	}
+
+	if (!subscribedToGetAccepted || !getShadowProcessed ||
+	    !gatewaySubscribed) {
+		StartGatewayInitTimer();
+	}
+
+	return rc;
+}
+
+static void StartGatewayInitTimer(void)
+{
+	k_timer_start(&gatewayInitTimer, K_SECONDS(1), 0);
+}
+
+/******************************************************************************/
+/* Interrupt Service Routines                                                 */
+/******************************************************************************/
+static void GatewayInitTimerCallbackIsr(struct k_timer *timer_id)
+{
+	UNUSED_PARAMETER(timer_id);
+	FRAMEWORK_MSG_CREATE_AND_SEND(FWK_ID_AWS, FWK_ID_AWS, FMC_GATEWAY_INIT);
 }

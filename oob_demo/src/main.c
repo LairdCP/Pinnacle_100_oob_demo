@@ -84,6 +84,8 @@ K_MSGQ_DEFINE(sensorQ, FWK_QUEUE_ENTRY_SIZE, 16, FWK_QUEUE_ALIGNMENT);
 
 static struct led_blink_pattern dataSendLedPattern;
 
+static struct k_timer awsKeepAliveTimer;
+
 /******************************************************************************/
 /* Local Function Prototypes                                                  */
 /******************************************************************************/
@@ -119,6 +121,9 @@ static void lwm2mMsgHandler(void);
 
 static void configure_leds(void);
 
+static void StartKeepAliveTimer(void);
+static void AwsKeepAliveTimerCallbackIsr(struct k_timer *timer_id);
+
 /******************************************************************************/
 /* Global Function Definitions                                                */
 /******************************************************************************/
@@ -130,6 +135,7 @@ void main(void)
 
 	Framework_Initialize();
 	initializeAwsMsgReceiver();
+	k_timer_init(&awsKeepAliveTimer, AwsKeepAliveTimerCallbackIsr, NULL);
 #if CONFIG_BLUEGRASS
 	Bluegrass_Initialize(awsMsgReceiver.pQueue);
 #endif
@@ -308,7 +314,6 @@ static void lteEvent(enum lte_event event)
 
 static void appStateAwsSendSensorData(void)
 {
-	int rc;
 	s32_t blinks = 0;
 
 	/* If decommissioned then disconnect. */
@@ -321,22 +326,9 @@ static void appStateAwsSendSensorData(void)
 	setAwsStatusWrapper(oob_ble_get_central_connection(),
 			    AWS_STATUS_CONNECTED);
 
-#if CONFIG_BLUEGRASS
-	Bluegrass_GatewaySubscriptionHandler();
-#endif
-
 	awsMsgHandler(&blinks);
 
-	/* Periodically sending the RSSI keeps AWS connection alive. */
-	if (blinks == 0) {
-		lteInfo = lteGetStatus();
-		rc = awsPublishPinnacleData(lteInfo->rssi, lteInfo->sinr);
-		if (rc == 0) {
-			blinks += 1;
-		}
-	}
-
-	/* The RSSI is always sent. If the count is 0 there was a problem. */
+	/* If the count is 0 there was a problem. */
 	if (blinks > 0) {
 		dataSendLedPattern.repeat_count = blinks - 1;
 		led_blink(GREEN_LED2, &dataSendLedPattern);
@@ -400,8 +392,7 @@ static void awsMsgHandler(s32_t *blinks)
 		Block if there are not any messages. */
 		rc = -EINVAL;
 		pMsg = NULL;
-		Framework_Receive(awsMsgReceiver.pQueue, &pMsg,
-				  K_SECONDS(CONFIG_AWS_QUEUE_TIMEOUT_SECONDS));
+		Framework_Receive(awsMsgReceiver.pQueue, &pMsg, K_FOREVER);
 		if (pMsg == NULL) {
 			return;
 		}
@@ -416,6 +407,14 @@ static void awsMsgHandler(s32_t *blinks)
 			rc = awsPublishBl654SensorData(pBmeMsg->temperatureC,
 						       pBmeMsg->humidityPercent,
 						       pBmeMsg->pressurePa);
+		} break;
+
+		case FMC_AWS_KEEP_ALIVE: {
+			/* Periodically sending the RSSI keeps AWS connection open. */
+			lteInfo = lteGetStatus();
+			rc = awsPublishPinnacleData(lteInfo->rssi,
+						    lteInfo->sinr);
+			StartKeepAliveTimer();
 		} break;
 
 		default:
@@ -472,8 +471,10 @@ static void appStateAwsInitShadow(void)
 	} else {
 		initShadow = false;
 		appSetNextState(appStateAwsSendSensorData);
-		FRAMEWORK_MSG_CREATE_AND_BROADCAST(FWK_ID_RESERVED,
-						   FMC_AWS_CONNECTED);
+		StartKeepAliveTimer();
+#if CONFIG_BLUEGRASS
+		Bluegrass_ConnectedCallback();
+#endif
 	}
 }
 
@@ -512,8 +513,6 @@ static void appStateAwsDisconnect(void)
 #if CONFIG_BLUEGRASS
 	Bluegrass_DisconnectedCallback();
 #endif
-	FRAMEWORK_MSG_CREATE_AND_BROADCAST(FWK_ID_RESERVED,
-					   FMC_AWS_DISCONNECTED);
 	appSetNextState(appStateAwsConnect);
 }
 
@@ -704,6 +703,19 @@ static void configure_leds(void)
 		{ GREEN_LED4, LED4_DEV, LED4, LED_ACTIVE_HIGH }
 	};
 	led_init(c, ARRAY_SIZE(c));
+}
+
+static void StartKeepAliveTimer(void)
+{
+	k_timer_start(&awsKeepAliveTimer,
+		      K_SECONDS(CONFIG_AWS_QUEUE_TIMEOUT_SECONDS), 0);
+}
+
+static void AwsKeepAliveTimerCallbackIsr(struct k_timer *timer_id)
+{
+	UNUSED_PARAMETER(timer_id);
+	FRAMEWORK_MSG_CREATE_AND_SEND(FWK_ID_AWS, FWK_ID_AWS,
+				      FMC_AWS_KEEP_ALIVE);
 }
 
 /******************************************************************************/
