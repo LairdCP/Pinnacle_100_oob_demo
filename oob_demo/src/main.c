@@ -548,6 +548,11 @@ static void appStateAwsInitShadow(void)
 
 static void appStateAwsConnect(void)
 {
+	if ((devCertSet != true) || (devKeySet != true)) {
+		appSetNextState(appStateCommissionDevice);
+		return;
+	}
+
 	if (awsConnect() != 0) {
 		MAIN_LOG_ERR("Could not connect to AWS");
 		setAwsStatusWrapper(oob_ble_get_central_connection(),

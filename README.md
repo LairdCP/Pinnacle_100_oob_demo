@@ -14,7 +14,8 @@
    [Device Information](#device-information)  
    [Cellular Settings](#cellular-settings)  
    [Power Settings](#power-settings)  
-6. **[Cloud Data](#cloud-data)**
+6. **[Cloud Data](#cloud-data)**  
+   [BT510 Sensor Data](#bt510-sensor-data)  
 7. **[LED behavior](#led-behavior)**
 8. **[Development](#development)**  
    [Cloning and Building the Source](#cloning-and-building-the-source)  
@@ -24,10 +25,15 @@
 ## Introduction
 
 The Pinnacle 100 out of box demo demonstrates gathering sensor data over BLE and sending the data to the cloud (AWS) via LTE Cat-M1.
-One device that can be used for the demo is the BL654 BME280 sensor. This sensor measures temperature, humidity and pressure.  Another sensor that can be used with the demo is the BT510.  It records temperature and movement.  The BT510 can also be configured to detect a magnet (door open/closed).  
-The Pinnacle 100 will scan for the BL654 Sensor and connect to the first one it finds.  The Pinnacle 100 will gather data for the BT510 devices from advertisements without creating a connection.  The demo does not include code for configuring the BT510.  This must be done using the BT510 phone application. 
+One device that can be used for the demo is the BL654 BME280 sensor. This sensor measures temperature, humidity and pressure.
+
+Another supported sensor is the BT510.  It records temperature and movement.  The BT510 can also be configured to detect a door opened/closed.
+
+The Pinnacle 100 will scan for the BL654 Sensor and connect to the first one it finds.  At the same time, the Pinnacle 100 will gather data for the BT510 devices from advertisements without creating a connection.
 The demo supports one BL654 Sensor and up to fifteen BT510 sensors.  The demo can be recompiled to remove support for either sensor.
-Using the Laird Pinnacle Connect mobile app, the user can provision the Pinnacle 100 to connect to AWS. Once connected to AWS, the Pinnacle will send sensor data (if a sensor is found) to the cloud every 90 seconds. The Pinnacle 100 uses LTE Cat-M1 eDRX to save power in this demo.
+
+Using the Laird Pinnacle Connect mobile app, the user can provision the Pinnacle 100 to connect to AWS. Once connected to AWS, the Pinnacle will send BME280 sensor data (if a sensor is found) to the cloud every 60 seconds. 
+Once a BT510 is discoverd and enabled via the web portal, its sensor data will be reported.  The details of the BT510 data reporting are detailed [below](#bt510-sensor-data).
 ```
                 XXXXX
               XXX   XXX
@@ -183,10 +189,43 @@ Each pinnacle 100 that is added is identified by its IMEI.
 
 Click on the device ID to display its data.
 
-![Device data](docs/images/cloud_device_data.png)  
-_Device data_
+![Pinnacle 100 data](docs/images/pinnacle_100_data.png)  
+_Pinnacle 100 data_
 
-The Pinnacle 100 will report sensor data every 90 seconds. The user can select the check box next to any numeric value to see the value in the graph. The graph only displays live data that is logged while viewing the webpage. If the user leaves the web page and returns, the graph will start over with the most recent data that was received when returning to the page.
+If a BME280 sensor is discovered.  The Pinnacle 100 will connect and report BME280 sensor data every 60 seconds. The graph only displays live data that is logged while viewing the webpage. If the user leaves the web page and returns, the graph will start over with the most recent data that was received when returning to the page.
+
+### BT510 Sensor Data
+
+If a BT510 sensor is discovered, it will be displayed in the "Sensor Network" list.
+
+![BT510 discovered](docs/images/bt510_discovered.png)  
+_BT510 discovered_
+
+In order to receive sensor readings from a BT510 sensor, the sensor needs to be enabled via the web portal.  Click the check box and then hit submit to enable the sensor.
+
+![BT510 enabling](docs/images/enabling_bt510.png)  
+_BT510 enabling_
+
+![BT510 enabled](docs/images/enabled_bt510.png)  
+_BT510 enabled_
+
+Once enabled, it can take up to 30 seconds for the sensor to subscribe.  Once subscribed, the sensor will begin to send data.
+
+![BT510 subscribed](docs/images/bt510_subscribed.png)  
+_BT510 subscribed_
+
+By default a BT510 sensor will report temperature data every 2 minutes, battery data once an hour, and movement and button presses immediately.
+
+Click on the BT510 sensor name to view the details and settings of the sensor.
+
+![BT510 graph](docs/images/bt510_graph.png)  
+_BT510 graph_
+
+![BT510 parameters](docs/images/bt510_parameters.png)  
+_BT510 parameters_
+
+![BT510 log](docs/images/bt510_log.png)  
+_BT510 log_
 
 ## LED behavior
 

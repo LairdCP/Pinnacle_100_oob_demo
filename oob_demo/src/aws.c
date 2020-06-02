@@ -544,7 +544,7 @@ static int subscription_handler(struct mqtt_client *const client,
 	memset(subscription_buffer, 0, CONFIG_SHADOW_IN_MAX_SIZE);
 	int rc = mqtt_read_publish_payload(client, subscription_buffer, length);
 	if (rc == length) {
-#if JSON_LOG_MQTT_RX_DATA
+#if CONFIG_JSON_LOG_MQTT_RX_DATA
 		print_json("MQTT Read data", rc, subscription_buffer);
 #endif
 
