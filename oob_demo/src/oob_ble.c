@@ -257,11 +257,13 @@ struct bt_conn *oob_ble_get_central_connection(void)
 static void discover_services_work_callback(struct k_work *work)
 {
 	ARG_UNUSED(work);
-	memcpy(&uuid, BT_UUID_ESS, sizeof(uuid));
-	set_ble_state(BT_DEMO_APP_STATE_FINDING_SERVICE);
-	int err = find_service(sensor_conn, uuid);
-	if (err) {
-		discover_failed_handler(sensor_conn, err);
+	if (sensor_conn) {
+		memcpy(&uuid, BT_UUID_ESS, sizeof(uuid));
+		set_ble_state(BT_DEMO_APP_STATE_FINDING_SERVICE);
+		int err = find_service(sensor_conn, uuid);
+		if (err) {
+			discover_failed_handler(sensor_conn, err);
+		}
 	}
 }
 
@@ -299,6 +301,9 @@ static u8_t notify_func_callback(struct bt_conn *conn,
 				   .value_handle) {
 			BLE_LOG_WRN("Unsubscribed from pressure");
 		}
+		k_delayed_work_submit(
+			&discover_services_work,
+			K_SECONDS(DISCOVER_SERVICES_DELAY_SECONDS));
 		params->value_handle = 0;
 		return BT_GATT_ITER_STOP;
 	}
