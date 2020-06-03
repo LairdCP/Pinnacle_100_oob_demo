@@ -27,7 +27,7 @@ LOG_MODULE_REGISTER(lwm2m_client);
 #include "led_configuration.h"
 #include "dis.h"
 #include "qrtc.h"
-#include "power.h"
+#include "laird_power.h"
 #include "ble_lwm2m_service.h"
 #include "lte.h"
 #include "lwm2m_client.h"

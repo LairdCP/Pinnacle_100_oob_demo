@@ -26,7 +26,7 @@ LOG_MODULE_REGISTER(oob_power_svc);
 #include "oob_common.h"
 #include "laird_bluetooth.h"
 #include "ble_power_service.h"
-#include "power.h"
+#include "laird_power.h"
 
 /******************************************************************************/
 /* Local Constant, Macro and Type Definitions                                 */

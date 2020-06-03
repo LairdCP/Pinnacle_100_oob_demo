@@ -38,7 +38,7 @@ LOG_MODULE_REGISTER(oob_main);
 #include "ble_aws_service.h"
 #include "ble_sensor_service.h"
 #include "ble_power_service.h"
-#include "power.h"
+#include "laird_power.h"
 #include "dis.h"
 #include "bootloader.h"
 #include "FrameworkIncludes.h"
@@ -692,6 +692,12 @@ static void AwsKeepAliveTimerCallbackIsr(struct k_timer *timer_id)
 	UNUSED_PARAMETER(timer_id);
 	FRAMEWORK_MSG_CREATE_AND_SEND(FWK_ID_AWS, FWK_ID_AWS,
 				      FMC_AWS_KEEP_ALIVE);
+}
+
+/* Override weak implementation in laird_power.c */
+void power_measurement_callback(u8_t integer, u8_t decimal)
+{
+	power_svc_set_voltage(integer, decimal);
 }
 
 /******************************************************************************/
