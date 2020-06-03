@@ -64,3 +64,14 @@ AdHandle_t AdFind_Name(u8_t *pAdv, size_t Length)
 	return AdFind_Type(pAdv, Length, BT_DATA_NAME_SHORTENED,
 			   BT_DATA_NAME_COMPLETE);
 }
+
+bool AdFind_MatchName(u8_t *pAdv, size_t Length, char *Name, size_t NameLength)
+{
+	AdHandle_t nameHandle = AdFind_Name(pAdv, Length);
+	if (nameHandle.pPayload != NULL) {
+		if (strncmp(Name, nameHandle.pPayload, NameLength) == 0) {
+			return true;
+		}
+	}
+	return false;
+}

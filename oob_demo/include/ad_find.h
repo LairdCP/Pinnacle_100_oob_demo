@@ -51,6 +51,14 @@ AdHandle_t AdFind_Type(u8_t *pAdv, size_t Length, u8_t Type1, u8_t Type2);
  */
 AdHandle_t AdFind_Name(u8_t *pAdv, size_t Length);
 
+/**
+ * @brief Compares name string with name field in advertisement.
+ *
+ * @retval true if name field is in advertisement and NameLength bytes match,
+ * otherwise false
+ */
+bool AdFind_MatchName(u8_t *pAdv, size_t Length, char *Name, size_t NameLength);
+
 #ifdef __cplusplus
 }
 #endif
