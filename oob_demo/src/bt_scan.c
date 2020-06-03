@@ -63,9 +63,9 @@ void bt_scan_stop(void)
 	}
 }
 
-void bt_scan_resume(void)
+void bt_scan_resume(s32_t timeout)
 {
-	k_sem_take(&stop_requests, K_FOREVER);
+	k_sem_take(&stop_requests, timeout);
 	bt_scan_start();
 }
 

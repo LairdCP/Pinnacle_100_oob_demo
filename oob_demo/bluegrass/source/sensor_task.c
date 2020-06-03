@@ -519,7 +519,7 @@ static DispatchResult_t DisconnectMsgHandler(FwkMsgReceiver_t *pMsgRxer,
 
 	bt_conn_unref(pObj->conn);
 	pObj->conn = NULL;
-	bt_scan_resume();
+	bt_scan_resume(K_NO_WAIT);
 
 	return DISPATCH_OK;
 }

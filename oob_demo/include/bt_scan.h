@@ -39,10 +39,13 @@ void bt_scan_stop(void);
 /**
  * @brief Decrements the number of stop requests and then calls bt_scan_start.
  *
+ * @param timeout determines how long this task will block on the stop request
+ * counting semaphore.
+ *
  * @note A user should only call this once for each time that it has called
  * stop.
  */
-void bt_scan_resume(void);
+void bt_scan_resume(s32_t timeout);
 
 /******************************************************************************/
 /* If desired, override weak implementation in application                    */

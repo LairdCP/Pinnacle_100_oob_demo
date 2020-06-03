@@ -43,6 +43,7 @@ LOG_MODULE_REGISTER(oob_main);
 #include "bootloader.h"
 #include "FrameworkIncludes.h"
 #include "laird_utility_macros.h"
+#include "bt_scan.h"
 
 #if CONFIG_BLUEGRASS
 #include "bluegrass.h"
@@ -377,6 +378,14 @@ static void appStateStartup(void)
 	} else {
 		appSetNextState(appStateCommissionDevice);
 	}
+#endif
+
+#if CONFIG_SCAN_FOR_BL654 || CONFIG_SCAN_FOR_BT510
+	bt_scan_start();
+#endif
+
+#if CONFIG_SCAN_FOR_BL654 || CONFIG_SCAN_FOR_BT510
+	bt_scan_start();
 #endif
 }
 
