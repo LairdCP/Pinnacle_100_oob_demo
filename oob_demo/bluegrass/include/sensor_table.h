@@ -89,6 +89,11 @@ typedef struct SensorCmdMsg {
 void SensorTable_Initialize(void);
 
 /**
+ * @brief Returns true if ad is from a BT510.
+ */
+bool SensorTable_MatchBt510(struct net_buf_simple *ad);
+
+/**
  * @brief Advertisement parser
  */
 void SensorTable_AdvertisementHandler(const bt_addr_le_t *pAddr, s8_t rssi,

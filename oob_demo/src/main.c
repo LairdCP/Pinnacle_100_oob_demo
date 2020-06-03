@@ -665,10 +665,7 @@ EXTERNED void bt_scan_adv_handler(const bt_addr_le_t *addr, s8_t rssi,
 				  u8_t type, struct net_buf_simple *ad)
 {
 #if CONFIG_SCAN_FOR_BL654_SENSOR
-	Ad_t adv;
-	adv.len = ad->len;
-	memcpy(adv.data, ad->data, MIN(MAX_AD_SIZE, ad->len));
-	bl654_sensor_adv_handler(addr, rssi, type, &adv);
+	bl654_sensor_adv_handler(addr, rssi, type, ad);
 #endif
 }
 #endif

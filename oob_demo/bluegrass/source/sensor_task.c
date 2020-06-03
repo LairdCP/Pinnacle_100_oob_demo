@@ -24,7 +24,6 @@ LOG_MODULE_REGISTER(sensor_task);
 #include "FrameworkIncludes.h"
 #include "Bracket.h"
 #include "oob_common.h"
-#include "oob_ble.h"
 #include "laird_bluetooth.h"
 #include "bt_scan.h"
 #include "vsp_definitions.h"
@@ -36,14 +35,6 @@ LOG_MODULE_REGISTER(sensor_task);
 /******************************************************************************/
 /* Local Constant, Macro and Type Definitions                                 */
 /******************************************************************************/
-#ifndef CONFIG_SCAN_FOR_BL654_SENSOR
-#define CONFIG_SCAN_FOR_BL654_SENSOR 0
-#endif
-
-#ifndef CONFIG_SCAN_FOR_BT510
-#define CONFIG_SCAN_FOR_BT510 0
-#endif
-
 #ifndef SENSOR_TASK_PRIORITY
 #define SENSOR_TASK_PRIORITY K_PRIO_PREEMPT(1)
 #endif
@@ -53,7 +44,7 @@ LOG_MODULE_REGISTER(sensor_task);
 #endif
 
 #ifndef SENSOR_TASK_QUEUE_DEPTH
-#define SENSOR_TASK_QUEUE_DEPTH 100
+#define SENSOR_TASK_QUEUE_DEPTH 32
 #endif
 
 /** This is the timer tick rate for how often the AWS state is checked */
@@ -296,14 +287,8 @@ DispatchResult_t AdvertisementMsgHandler(FwkMsgReceiver_t *pMsgRxer,
 {
 	UNUSED_PARAMETER(pMsgRxer);
 	AdvMsg_t *pAdvMsg = (AdvMsg_t *)pMsg;
-	if (CONFIG_SCAN_FOR_BL654_SENSOR) {
-		bl654_sensor_adv_handler(&pAdvMsg->addr, pAdvMsg->rssi,
+	SensorTable_AdvertisementHandler(&pAdvMsg->addr, pAdvMsg->rssi,
 					 pAdvMsg->type, &pAdvMsg->ad);
-	}
-	if (CONFIG_SCAN_FOR_BT510) {
-		SensorTable_AdvertisementHandler(&pAdvMsg->addr, pAdvMsg->rssi,
-						 pAdvMsg->type, &pAdvMsg->ad);
-	}
 	return DISPATCH_OK;
 }
 

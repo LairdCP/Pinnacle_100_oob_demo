@@ -42,7 +42,6 @@ LOG_MODULE_REGISTER(oob_ble);
 /******************************************************************************/
 /* Local Constant, Macro and Type Definitions                                 */
 /******************************************************************************/
-#define BT_REMOTE_DEVICE_NAME_STR "BL654 BME280 Sensor"
 #define DISCOVER_SERVICES_DELAY_SECONDS 1
 
 enum ble_state {
@@ -157,11 +156,9 @@ static struct bt_conn_cb conn_callbacks = {
 /* Global Function Definitions                                                */
 /******************************************************************************/
 void bl654_sensor_adv_handler(const bt_addr_le_t *addr, s8_t rssi, u8_t type,
-			      Ad_t *ad)
+			      struct net_buf_simple *ad)
 {
-	bool found = false;
 	char bt_addr[BT_ADDR_LE_STR_LEN];
-	AdHandle_t nameHandle = { NULL, 0 };
 
 	/* Leave this function if already connected */
 	if (sensor_conn) {
@@ -174,20 +171,13 @@ void bl654_sensor_adv_handler(const bt_addr_le_t *addr, s8_t rssi, u8_t type,
 	}
 
 	/* Check if this is the device we are looking for */
-	nameHandle = AdFind_Name(ad->data, ad->len);
-	if (nameHandle.pPayload != NULL) {
-		if (strncmp(BT_REMOTE_DEVICE_NAME_STR, nameHandle.pPayload,
-			    strlen(BT_REMOTE_DEVICE_NAME_STR)) == 0) {
-			found = true;
-		}
-	}
-
-	if (!found) {
+	if (!AdFind_MatchName(ad->data, ad->len, CONFIG_BL654_SENSOR_NAME,
+			      strlen(CONFIG_BL654_SENSOR_NAME))) {
 		return;
 	}
 	BLE_LOG_INF("Found BL654 Sensor");
 
-	/* Can't connect while scanning for BT510s */
+	/* Can't connect while scanning */
 	bt_scan_stop();
 
 	/* Connect to device */

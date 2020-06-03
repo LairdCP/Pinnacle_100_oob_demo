@@ -25,7 +25,8 @@ config BL654_SENSOR_NAME
     string "The advertised name of the BL654 sensor"
     default "BL654 BME280 Sensor"
     help
-        Any sensor with the ESS service (temperature, humidity, and pressure) should work.
+        Any sensor with the ESS service
+        (temperature, humidity, and pressure) should work.
 
 config AWS_DATA_SEND_LED_OFF_DURATION_MILLISECONDS
     int "The amound of time to turn off the green LED when data is sent"
@@ -51,6 +52,9 @@ config AWS_TOPIC_MAX_SIZE
 config BLUEGRASS
     bool "Send data to Laird Connectivity's Bluegrass (AWS)"
     default y
+    help
+        When disabled modem and BL654 Sensor data will still be sent
+        to the shadow.
 
 menu "Laird Connectivity Bluegrass Demo Options"
      depends on BLUEGRASS
