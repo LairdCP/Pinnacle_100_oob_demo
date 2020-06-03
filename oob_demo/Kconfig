@@ -21,10 +21,26 @@ config BL654_SENSOR_SEND_TO_AWS_RATE_SECONDS
     default 90
     range 30 3600
 
-config AWS_QUEUE_TIMEOUT_SECONDS
-    int "The amount of time to wait for data to send to AWS"
+config BL654_SENSOR_NAME
+    string "The advertised name of the BL654 sensor"
+    default "BL654 BME280 Sensor"
+    help
+        Any sensor with the ESS service (temperature, humidity, and pressure) should work.
+
+config AWS_DATA_SEND_LED_OFF_DURATION_MILLISECONDS
+    int "The amound of time to turn off the green LED when data is sent"
     default 30
-    range 1 60
+    range 1 300
+    help
+        Green LED is turned on when connected to AWS.
+        Green LED is flashed off when data is sent.
+        Implemented using sleep.
+        Subscription processing doesn't blink green LED.
+
+config AWS_KEEP_ALIVE_SECONDS
+    int "The modem's RSSI is sent at this rate to keep AWS connection alive"
+    default 30
+    range 1 80
     help
         This can't be more than the AWS connection timeout.
 
@@ -82,6 +98,14 @@ config SENSOR_LOG_MAX_SIZE
     help
         Limited by the memory pool
         Limited by MQTT or modem.
+
+config SENSOR_SUBSCRIPTION_DELAY_SECONDS
+    int "The number of seconds to wait after a sensor is whitelisted before subscribing to the delta and get topics."
+    default 10
+    range 6 60
+    help
+        The server needs time to generate the sensor object.
+        When the permissions are changed on AWS a disconnect may occur.
 
 config VSP_TX_ECHO
     bool "Print Virtual Serial Port data transmitted to sensors"

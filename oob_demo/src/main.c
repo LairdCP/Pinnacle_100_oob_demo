@@ -81,9 +81,7 @@ struct lte_status *lteInfo;
 
 static FwkMsgReceiver_t awsMsgReceiver;
 
-K_MSGQ_DEFINE(sensorQ, FWK_QUEUE_ENTRY_SIZE, 16, FWK_QUEUE_ALIGNMENT);
-
-static struct led_blink_pattern dataSendLedPattern;
+K_MSGQ_DEFINE(awsQ, FWK_QUEUE_ENTRY_SIZE, 16, FWK_QUEUE_ALIGNMENT);
 
 static struct k_timer awsKeepAliveTimer;
 
@@ -106,10 +104,9 @@ static const char *getAppStateString(app_state_function_t state);
 static void setAwsStatusWrapper(struct bt_conn *conn, enum aws_status status);
 
 static void initializeAwsMsgReceiver(void);
-static void awsMsgHandler(s32_t *blinks);
+static void awsMsgHandler(void);
 static void awsSvcEvent(enum aws_svc_event event);
 static int setAwsCredentials(void);
-static void ledPatternCompleteCallback(void);
 static void sensorUpdated(u8_t sensor, s32_t reading);
 static void lteEvent(enum lte_event event);
 static void softwareReset(u32_t DelayMs);
@@ -205,12 +202,6 @@ void main(void)
 	printk("\n!!!!!!!! App is ready! !!!!!!!!\n");
 
 	appSetNextState(appStateStartup);
-
-	led_register_pattern_complete_function(GREEN_LED2,
-					       ledPatternCompleteCallback);
-	dataSendLedPattern.on_time = DATA_SEND_LED_ON_TIME_TICKS;
-	dataSendLedPattern.off_time = DATA_SEND_LED_OFF_TIME_TICKS;
-	dataSendLedPattern.repeat_count = 0;
 
 	print_thread_list();
 
@@ -315,31 +306,20 @@ static void lteEvent(enum lte_event event)
 
 static void appStateAwsSendSensorData(void)
 {
-	s32_t blinks = 0;
-
 	/* If decommissioned then disconnect. */
 	if (!commissioned || !awsConnected()) {
 		appSetNextState(appStateAwsDisconnect);
 		led_turn_off(GREEN_LED2);
 		return;
 	}
-
 	setAwsStatusWrapper(oob_ble_get_central_connection(),
 			    AWS_STATUS_CONNECTED);
 
-	awsMsgHandler(&blinks);
+	/* Process messages until there is an error. */
+	awsMsgHandler();
 
-	/* If the count is 0 there was a problem. */
-	if (blinks > 0) {
-		dataSendLedPattern.repeat_count = blinks - 1;
-		led_blink(GREEN_LED2, &dataSendLedPattern);
-	} else {
-		led_turn_off(GREEN_LED2);
-	}
-
-	if (k_msgq_num_used_get(&sensorQ) != 0) {
-		MAIN_LOG_WRN("%u unsent messages",
-			     k_msgq_num_used_get(&sensorQ));
+	if (k_msgq_num_used_get(&awsQ) != 0) {
+		MAIN_LOG_WRN("%u unsent messages", k_msgq_num_used_get(&awsQ));
 	}
 }
 
@@ -383,20 +363,17 @@ static void appStateStartup(void)
 #if CONFIG_SCAN_FOR_BL654 || CONFIG_SCAN_FOR_BT510
 	bt_scan_start();
 #endif
-
-#if CONFIG_SCAN_FOR_BL654 || CONFIG_SCAN_FOR_BT510
-	bt_scan_start();
-#endif
 }
 
 /* This function will throw away sensor data if it can't send it. */
-static void awsMsgHandler(s32_t *blinks)
+static void awsMsgHandler(void)
 {
 	int rc = 0;
 	FwkMsg_t *pMsg;
 	bool freeMsg;
 
 	while (rc == 0) {
+		led_turn_on(GREEN_LED2);
 		/* Remove sensor/gateway data from queue and send it to cloud.
 		Block if there are not any messages. */
 		rc = -EINVAL;
@@ -437,21 +414,14 @@ static void awsMsgHandler(s32_t *blinks)
 			BufferPool_Free(pMsg);
 		}
 
+		/* Any error will most likely result in a disconnect. */
+		led_turn_off(GREEN_LED2);
 		if (rc != 0) {
 			MAIN_LOG_ERR("AWS queue processing error (%d)", rc);
 		} else {
-			*blinks += 1;
+			k_sleep(K_MSEC(
+				CONFIG_AWS_DATA_SEND_LED_OFF_DURATION_MILLISECONDS));
 		}
-	}
-}
-
-static void ledPatternCompleteCallback(void)
-{
-	/* This occurs in LED timer context (system workq) */
-	if (awsConnected()) {
-		led_turn_on(GREEN_LED2);
-	} else {
-		led_turn_off(GREEN_LED2);
 	}
 }
 
@@ -675,7 +645,7 @@ static void setAwsStatusWrapper(struct bt_conn *conn, enum aws_status status)
 static void initializeAwsMsgReceiver(void)
 {
 	awsMsgReceiver.id = FWK_ID_AWS;
-	awsMsgReceiver.pQueue = &sensorQ;
+	awsMsgReceiver.pQueue = &awsQ;
 	awsMsgReceiver.rxBlockTicks = 0; /* unused */
 	awsMsgReceiver.pMsgDispatcher = NULL; /* unused */
 	Framework_RegisterReceiver(&awsMsgReceiver);
@@ -717,7 +687,7 @@ static void configure_leds(void)
 static void StartKeepAliveTimer(void)
 {
 	k_timer_start(&awsKeepAliveTimer,
-		      K_SECONDS(CONFIG_AWS_QUEUE_TIMEOUT_SECONDS), 0);
+		      K_SECONDS(CONFIG_AWS_KEEP_ALIVE_SECONDS), 0);
 }
 
 static void AwsKeepAliveTimerCallbackIsr(struct k_timer *timer_id)

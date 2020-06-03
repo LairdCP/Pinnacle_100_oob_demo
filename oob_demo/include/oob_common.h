@@ -33,12 +33,6 @@ extern "C" {
 /******************************************************************************/
 #define WAIT_TIME_BEFORE_RETRY_TICKS K_SECONDS(10)
 
-/* Green LED is turned on when connected to AWS.
- * Green LED is flashed off when data is sent.
- */
-#define DATA_SEND_LED_ON_TIME_TICKS K_MSEC(60)
-#define DATA_SEND_LED_OFF_TIME_TICKS K_MSEC(30)
-
 #define DEFAULT_LED_ON_TIME_FOR_1_SECOND_BLINK K_MSEC(100)
 #define DEFAULT_LED_OFF_TIME_FOR_1_SECOND_BLINK K_MSEC(900)
 

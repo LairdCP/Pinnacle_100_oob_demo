@@ -66,6 +66,9 @@ LOG_MODULE_REGISTER(sensor_task);
 #define AWS_FIFO_PURGE_THRESHOLD_TICKS K_SECONDS(60)
 #endif
 
+/** At 1 second there are duplicate requests for shadow information. */
+#define SENSOR_TICK_RATE_SECONDS 3
+
 #define ENCRYPTION_TIMEOUT_TICKS K_SECONDS(2)
 #define CONNECTION_TIMEOUT_TICKS K_SECONDS(CONFIG_BT_CREATE_CONN_TIMEOUT + 2)
 
@@ -280,6 +283,11 @@ static void SensorTaskThread(void *pArg1, void *pArg2, void *pArg3)
 
 	while (true) {
 		Framework_MsgReceiver(&pObj->msgTask.rxer);
+		u32_t numUsed = k_msgq_num_used_get(pObj->msgTask.rxer.pQueue);
+		if (numUsed > SENSOR_TASK_QUEUE_DEPTH / 2) {
+			LOG_WRN("Sensor Task filled to %u of %u", numUsed,
+				SENSOR_TASK_QUEUE_DEPTH);
+		}
 	}
 }
 
@@ -444,7 +452,8 @@ static DispatchResult_t AwsConnectionMsgHandler(FwkMsgReceiver_t *pMsgRxer,
 
 static void StartSensorTick(SensorTaskObj_t *pObj)
 {
-	k_timer_start(&pObj->sensorTick, K_SECONDS(1), 0);
+	k_timer_start(&pObj->sensorTick, K_SECONDS(SENSOR_TICK_RATE_SECONDS),
+		      0);
 }
 
 static DispatchResult_t SubscriptionAckMsgHandler(FwkMsgReceiver_t *pMsgRxer,

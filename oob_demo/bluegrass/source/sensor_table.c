@@ -176,7 +176,7 @@ static s32_t GetTemperature(SensorEntry_t *pEntry);
 static u32_t GetBattery(SensorEntry_t *pEntry);
 
 static void ConnectRequestHandler(size_t Index);
-static void CreateDumpRequest(SensorEntry_t *pEntry, s64_t DelayMs);
+static void CreateDumpRequest(SensorEntry_t *pEntry);
 static void CreateConfigRequest(SensorEntry_t *pEntry);
 
 static u32_t GetFlag(u16_t Value, u32_t Mask, u8_t Position);
@@ -345,8 +345,7 @@ void SensorTable_AckConfigRequest(SensorCmdMsg_t *pMsg)
 			pEntry->dumpBusy = false;
 			pEntry->firstDumpComplete = true;
 		} else {
-			CreateDumpRequest(pEntry,
-					  BT510_RESET_ACK_TO_DUMP_DELAY_TICKS);
+			CreateDumpRequest(pEntry);
 		}
 	}
 
@@ -491,7 +490,7 @@ void SensorTable_SubscriptionAckHandler(SubscribeMsg_t *pMsg)
 					if (p->rsp.configVersion == 0) {
 						CreateConfigRequest(p);
 					} else if (!p->firstDumpComplete) {
-						CreateDumpRequest(p, 0);
+						CreateDumpRequest(p);
 					}
 				}
 			} else { /* Try again (most likely AWS disconnect has occurred) */
@@ -1177,7 +1176,8 @@ static void Whitelist(SensorEntry_t *pEntry, bool NextState)
 		pEntry->subscribed = false;
 		pEntry->getAcceptedSubscribed = false;
 		pEntry->subscriptionDispatchTime =
-			k_uptime_get() + K_SECONDS(30);
+			k_uptime_get() +
+			K_SECONDS(CONFIG_SENSOR_SUBSCRIPTION_DELAY_SECONDS);
 		if (pEntry->pLog == NULL) {
 			pEntry->pLog =
 				SensorLog_Allocate(CONFIG_SENSOR_LOG_MAX_SIZE);
@@ -1196,28 +1196,24 @@ static void ConnectRequestHandler(size_t Index)
 
 	if (pEntry->pCmd != NULL && !pEntry->configBusy) {
 		SensorCmdMsg_t *pMsg = pEntry->pCmd;
-		if (pMsg->dispatchTime <= k_uptime_get()) {
-			pMsg->header.msgCode = FMC_CONNECT_REQUEST;
-			pMsg->header.rxId = FWK_ID_SENSOR_TASK;
+		pMsg->header.msgCode = FMC_CONNECT_REQUEST;
+		pMsg->header.rxId = FWK_ID_SENSOR_TASK;
+		pMsg->tableIndex = Index;
+		pMsg->attempts += 1;
+		memcpy(&pMsg->addr.a.val, pEntry->ad.addr.val,
+		       sizeof(bt_addr_t));
+		pMsg->addr.type = BT_ADDR_LE_RANDOM;
+		strncpy(pMsg->name, pEntry->name, SENSOR_NAME_MAX_STR_LEN);
 
-			pMsg->tableIndex = Index;
-			pMsg->attempts += 1;
-			memcpy(&pMsg->addr.a.val, pEntry->ad.addr.val,
-			       sizeof(bt_addr_t));
-			pMsg->addr.type = BT_ADDR_LE_RANDOM;
-			strncpy(pMsg->name, pEntry->name,
-				SENSOR_NAME_MAX_STR_LEN);
-
-			/* sensor task is now responsible for this message */
-			pEntry->configBusyVersion = pMsg->configVersion;
-			pEntry->configBusy = true;
-			pEntry->pCmd = NULL;
-			FRAMEWORK_MSG_SEND(pMsg);
-		}
+		/* sensor task is now responsible for this message */
+		pEntry->configBusyVersion = pMsg->configVersion;
+		pEntry->configBusy = true;
+		pEntry->pCmd = NULL;
+		FRAMEWORK_MSG_SEND(pMsg);
 	}
 }
 
-static void CreateDumpRequest(SensorEntry_t *pEntry, s64_t DelayMs)
+static void CreateDumpRequest(SensorEntry_t *pEntry)
 {
 	/* If an empty command is written by cloud, then send dump command. */
 	const char *pCmd;
@@ -1237,7 +1233,6 @@ static void CreateDumpRequest(SensorEntry_t *pEntry, s64_t DelayMs)
 		pMsg->size = bufSize;
 		pMsg->length = bufSize - 1;
 		pMsg->dumpRequest = true;
-		pMsg->dispatchTime = k_uptime_get() + DelayMs;
 		strncpy(pMsg->addrString, pEntry->addrString,
 			SENSOR_ADDR_STR_LEN);
 		strcpy(pMsg->cmd, pCmd);
