@@ -162,7 +162,7 @@ void main(void)
 		goto exit;
 	}
 
-	dis_initialize();
+	dis_initialize(APP_VERSION_STRING);
 
 	/* Start up BLE portion of the demo */
 	cell_svc_init();
