@@ -25,8 +25,8 @@ LOG_MODULE_REGISTER(oob_aws);
 #include <stdio.h>
 #include <kernel.h>
 
-#include "oob_common.h"
 #include "dns.h"
+#include "print_json.h"
 #include "aws.h"
 
 #if CONFIG_BLUEGRASS

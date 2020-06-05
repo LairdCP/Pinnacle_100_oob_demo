@@ -28,22 +28,26 @@ LOG_MODULE_REGISTER(oob_main);
 #include <shell/shell.h>
 #include <shell/shell_uart.h>
 
-#include "oob_common.h"
 #include "led_configuration.h"
-#include "oob_ble.h"
 #include "lte.h"
 #include "aws.h"
 #include "nv.h"
 #include "ble_cellular_service.h"
 #include "ble_aws_service.h"
-#include "ble_sensor_service.h"
 #include "ble_power_service.h"
 #include "laird_power.h"
 #include "dis.h"
 #include "bootloader.h"
 #include "FrameworkIncludes.h"
 #include "laird_utility_macros.h"
-#include "bt_scan.h"
+#include "single_peripheral.h"
+#include "print_thread.h"
+#include "string_util.h"
+#include "app_version.h"
+
+#if CONFIG_BL654_SENSOR
+#include "bl654_sensor.h"
+#endif
 
 #if CONFIG_BLUEGRASS
 #include "bluegrass.h"
@@ -54,21 +58,32 @@ LOG_MODULE_REGISTER(oob_main);
 #endif
 
 /******************************************************************************/
+/* Local Constant, Macro and Type Definitions                                 */
+/******************************************************************************/
+#define WAIT_TIME_BEFORE_RETRY_TICKS K_SECONDS(10)
+
+enum CREDENTIAL_TYPE { CREDENTIAL_CERT, CREDENTIAL_KEY };
+
+enum APP_ERROR {
+	APP_ERR_NOT_READY = -1,
+	APP_ERR_COMMISSION_DISALLOWED = -2,
+	APP_ERR_CRED_TOO_LARGE = -3,
+	APP_ERR_UNKNOWN_CRED = -4,
+	APP_ERR_READ_CERT = -5,
+	APP_ERR_READ_KEY = -6,
+};
+
+typedef void (*app_state_function_t)(void);
+
+/******************************************************************************/
 /* Local Data Definitions                                                     */
 /******************************************************************************/
 K_SEM_DEFINE(lte_ready_sem, 0, 1);
 K_SEM_DEFINE(rx_cert_sem, 0, 1);
 
-static float temperatureReading = 0;
-static float humidityReading = 0;
-static float pressureReading = 0;
 static bool initShadow = true;
 static bool resolveAwsServer = true;
 static bool lteNeverConnected = true;
-
-static bool bUpdatedTemperature = false;
-static bool bUpdatedHumidity = false;
-static bool bUpdatedPressure = false;
 
 static bool commissioned;
 static bool allowCommissioning = false;
@@ -103,11 +118,11 @@ static const char *getAppStateString(app_state_function_t state);
 
 static void setAwsStatusWrapper(struct bt_conn *conn, enum aws_status status);
 
+static void initializeBle(const char *imei);
 static void initializeAwsMsgReceiver(void);
 static void awsMsgHandler(void);
 static void awsSvcEvent(enum aws_svc_event event);
 static int setAwsCredentials(void);
-static void sensorUpdated(u8_t sensor, s32_t reading);
 static void lteEvent(enum lte_event event);
 static void softwareReset(u32_t DelayMs);
 
@@ -132,11 +147,6 @@ void main(void)
 	configure_leds();
 
 	Framework_Initialize();
-	initializeAwsMsgReceiver();
-	k_timer_init(&awsKeepAliveTimer, AwsKeepAliveTimerCallbackIsr, NULL);
-#if CONFIG_BLUEGRASS
-	Bluegrass_Initialize(awsMsgReceiver.pQueue);
-#endif
 
 	/* Init NV storage */
 	rc = nvInit();
@@ -162,24 +172,33 @@ void main(void)
 		goto exit;
 	}
 
+	initializeAwsMsgReceiver();
+	k_timer_init(&awsKeepAliveTimer, AwsKeepAliveTimerCallbackIsr, NULL);
+
+	initializeBle(lteInfo->IMEI);
+	single_peripheral_initialize();
+
+#if CONFIG_BL654_SENSOR
+	bl654_sensor_initialize();
+#endif
+
+#if CONFIG_BLUEGRASS
+	Bluegrass_Initialize(awsMsgReceiver.pQueue);
+#endif
+
 	dis_initialize(APP_VERSION_STRING);
 
 	/* Start up BLE portion of the demo */
 	cell_svc_init();
-	cell_svc_assign_connection_handler_getter(
-		oob_ble_get_central_connection);
+	cell_svc_assign_connection_handler_getter(single_peripheral_get_conn);
 	cell_svc_set_imei(lteInfo->IMEI);
 	cell_svc_set_fw_ver(lteInfo->radio_version);
 	cell_svc_set_iccid(lteInfo->ICCID);
 	cell_svc_set_serial_number(lteInfo->serialNumber);
 
-	bss_init();
-	bss_assign_connection_handler_getter(oob_ble_get_central_connection);
-
 	/* Setup the power service */
 	power_svc_init();
-	power_svc_assign_connection_handler_getter(
-		oob_ble_get_central_connection);
+	power_svc_assign_connection_handler_getter(single_peripheral_get_conn);
 	power_init();
 
 	bootloader_init();
@@ -194,9 +213,6 @@ void main(void)
 	} else {
 		aws_svc_set_status(NULL, AWS_STATUS_NOT_PROVISIONED);
 	}
-
-	oob_ble_initialise(lteInfo->IMEI);
-	oob_ble_set_callback(sensorUpdated);
 
 	appReady = true;
 	printk("\n!!!!!!!! App is ready! !!!!!!!!\n");
@@ -241,51 +257,29 @@ EXTERNED void Framework_AssertionHandler(char *file, int line)
 /******************************************************************************/
 /* Local Function Definitions                                                 */
 /******************************************************************************/
-
-/* This is a callback function which receives sensor readings */
-static void sensorUpdated(u8_t sensor, s32_t reading)
+static void initializeBle(const char *imei)
 {
-	static u64_t bmeEventTime = 0;
-	/* On init send first data immediately. */
-	static u32_t delta =
-		K_MSEC(CONFIG_BL654_SENSOR_SEND_TO_AWS_RATE_SECONDS);
+	int err;
+	char devName[sizeof("Pinnacle 100 OOB-1234567")];
+	int devNameEnd;
+	int imeiEnd;
 
-	if (sensor == SENSOR_TYPE_TEMPERATURE) {
-		/* Divide by 100 to get xx.xxC format */
-		temperatureReading = reading / 100.0;
-		bUpdatedTemperature = true;
-	} else if (sensor == SENSOR_TYPE_HUMIDITY) {
-		/* Divide by 100 to get xx.xx% format */
-		humidityReading = reading / 100.0;
-		bUpdatedHumidity = true;
-	} else if (sensor == SENSOR_TYPE_PRESSURE) {
-		/* Divide by 10 to get x.xPa format */
-		pressureReading = reading / 10.0;
-		bUpdatedPressure = true;
-	}
-
-	delta += k_uptime_delta_32(&bmeEventTime);
-	if (delta < K_MSEC(CONFIG_BL654_SENSOR_SEND_TO_AWS_RATE_SECONDS)) {
+	err = bt_enable(NULL);
+	if (err) {
+		LOG_ERR("Bluetooth init failed (err %d)", err);
 		return;
 	}
 
-	if (bUpdatedTemperature && bUpdatedHumidity && bUpdatedPressure) {
-		BL654SensorMsg_t *pMsg =
-			(BL654SensorMsg_t *)BufferPool_TryToTake(
-				sizeof(BL654SensorMsg_t));
-		if (pMsg == NULL) {
-			return;
-		}
-		pMsg->header.msgCode = FMC_BL654_SENSOR_EVENT;
-		pMsg->header.rxId = FWK_ID_AWS;
-		pMsg->temperatureC = temperatureReading;
-		pMsg->humidityPercent = humidityReading;
-		pMsg->pressurePa = pressureReading;
-		FRAMEWORK_MSG_SEND(pMsg);
-		bUpdatedTemperature = false;
-		bUpdatedHumidity = false;
-		bUpdatedPressure = false;
-		delta = 0;
+	LOG_INF("Bluetooth initialized");
+
+	/* add last 7 digits of IMEI to dev name */
+	strncpy(devName, CONFIG_BT_DEVICE_NAME "-", sizeof(devName) - 1);
+	devNameEnd = strlen(devName);
+	imeiEnd = strlen(imei);
+	strncat(devName + devNameEnd, imei + imeiEnd - 7, 7);
+	err = bt_set_name((const char *)devName);
+	if (err) {
+		LOG_ERR("Failed to set device name (%d)", err);
 	}
 }
 
@@ -312,8 +306,7 @@ static void appStateAwsSendSensorData(void)
 		led_turn_off(GREEN_LED2);
 		return;
 	}
-	setAwsStatusWrapper(oob_ble_get_central_connection(),
-			    AWS_STATUS_CONNECTED);
+	setAwsStatusWrapper(single_peripheral_get_conn(), AWS_STATUS_CONNECTED);
 
 	/* Process messages until there is an error. */
 	awsMsgHandler();
@@ -358,10 +351,6 @@ static void appStateStartup(void)
 	} else {
 		appSetNextState(appStateCommissionDevice);
 	}
-#endif
-
-#if CONFIG_SCAN_FOR_BL654 || CONFIG_SCAN_FOR_BT510
-	bt_scan_start();
 #endif
 }
 
@@ -461,7 +450,7 @@ static void appStateAwsConnect(void)
 {
 	if (awsConnect() != 0) {
 		MAIN_LOG_ERR("Could not connect to AWS");
-		setAwsStatusWrapper(oob_ble_get_central_connection(),
+		setAwsStatusWrapper(single_peripheral_get_conn(),
 				    AWS_STATUS_CONNECTION_ERR);
 
 		/* wait some time before trying to re-connect */
@@ -473,7 +462,7 @@ static void appStateAwsConnect(void)
 	commissioned = true;
 	allowCommissioning = false;
 
-	setAwsStatusWrapper(oob_ble_get_central_connection(),
+	setAwsStatusWrapper(single_peripheral_get_conn(),
 			    AWS_STATUS_CONNECTING);
 
 	appSetNextState(appStateAwsInitShadow);
@@ -486,7 +475,7 @@ static bool areCertsSet(void)
 
 static void appStateAwsDisconnect(void)
 {
-	setAwsStatusWrapper(oob_ble_get_central_connection(),
+	setAwsStatusWrapper(single_peripheral_get_conn(),
 			    AWS_STATUS_DISCONNECTED);
 	awsDisconnect();
 #if CONFIG_BLUEGRASS
@@ -509,7 +498,7 @@ static void appStateAwsResolveServer(void)
 
 static void appStateWaitForLte(void)
 {
-	setAwsStatusWrapper(oob_ble_get_central_connection(),
+	setAwsStatusWrapper(single_peripheral_get_conn(),
 			    AWS_STATUS_DISCONNECTED);
 
 	if (lteNeverConnected && !lteIsReady()) {
@@ -602,7 +591,7 @@ static int setAwsCredentials(void)
 static void appStateCommissionDevice(void)
 {
 	printk("\n\nWaiting to commission device\n\n");
-	setAwsStatusWrapper(oob_ble_get_central_connection(),
+	setAwsStatusWrapper(single_peripheral_get_conn(),
 			    AWS_STATUS_NOT_PROVISIONED);
 	allowCommissioning = true;
 
@@ -659,16 +648,6 @@ static void softwareReset(u32_t DelayMs)
 	power_reboot_module(REBOOT_TYPE_NORMAL);
 #endif
 }
-
-#if !CONFIG_BLUEGRASS
-EXTERNED void bt_scan_adv_handler(const bt_addr_le_t *addr, s8_t rssi,
-				  u8_t type, struct net_buf_simple *ad)
-{
-#if CONFIG_SCAN_FOR_BL654_SENSOR
-	bl654_sensor_adv_handler(addr, rssi, type, ad);
-#endif
-}
-#endif
 
 static void configure_leds(void)
 {

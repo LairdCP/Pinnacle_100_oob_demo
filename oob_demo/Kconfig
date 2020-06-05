@@ -12,7 +12,10 @@ config LAIRD_CONNECTIVITY_DEBUG
     bool
     default n
 
-config SCAN_FOR_BL654_SENSOR
+menu "BL654 Sensor"
+	 default y
+
+config BL654_SENSOR
     bool "Parse Bluetooth advertisements for BL654 Sensor"
     default y
 
@@ -22,14 +25,16 @@ config BL654_SENSOR_SEND_TO_AWS_RATE_SECONDS
     range 30 3600
 
 config BL654_SENSOR_NAME
-    string "The advertised name of the BL654 sensor"
+    string "The advertised name of the BL654 sensor (that is scanned for)"
     default "BL654 BME280 Sensor"
     help
-        Any sensor with the ESS service
-        (temperature, humidity, and pressure) should work.
+        Any sensor with the ESS service should work
+        (temperature, humidity, and pressure).
+
+endmenu
 
 config AWS_DATA_SEND_LED_OFF_DURATION_MILLISECONDS
-    int "The amound of time to turn off the green LED when data is sent"
+    int "The amount of time to turn off the green LED when data is sent"
     default 30
     range 1 300
     help
@@ -92,7 +97,8 @@ config SHADOW_IN_MAX_SIZE
 
 config SENSOR_TABLE_SIZE
     int "Number of sensors that can be monitored"
-    default 0
+    default 0 if LWM2M
+    default 10 if BLUEGRASS
     range 0 15
 
 config SENSOR_LOG_MAX_SIZE
@@ -122,9 +128,6 @@ config VSP_RX_ECHO
         This occurs in task context because strings can be long
 
 endmenu # Bluegrass options
-
-config JSON_LOG_ENABLED
-    bool "Print JSON messages in task context using printk"
 
 config JSON_LOG_PUBLISH
     bool "Print data published to AWS"

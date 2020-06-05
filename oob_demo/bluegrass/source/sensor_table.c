@@ -23,7 +23,6 @@ LOG_MODULE_REGISTER(sensor_table);
 #include <bluetooth/bluetooth.h>
 
 #include "laird_bluetooth.h"
-#include "oob_common.h"
 #include "qrtc.h"
 #include "ad_find.h"
 #include "shadow_builder.h"

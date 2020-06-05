@@ -17,8 +17,6 @@ LOG_MODULE_REGISTER(bluegrass);
 #include "aws.h"
 #include "sensor_task.h"
 #include "sensor_table.h"
-#include "oob_ble.h"
-
 #include "bluegrass.h"
 
 /******************************************************************************/
@@ -111,38 +109,6 @@ void Bluegrass_DisconnectedCallback(void)
 	SensorTable_DisableGatewayShadowGeneration();
 	FRAMEWORK_MSG_CREATE_AND_BROADCAST(FWK_ID_RESERVED,
 					   FMC_AWS_DISCONNECTED);
-}
-
-/* Override weak implementation in bt_scan module */
-EXTERNED void bt_scan_adv_handler(const bt_addr_le_t *addr, s8_t rssi,
-				  u8_t type, struct net_buf_simple *ad)
-{
-#if CONFIG_SCAN_FOR_BL654_SENSOR
-	/* This is simple and can be handled in BT RX task context */
-	bl654_sensor_adv_handler(addr, rssi, type, ad);
-#endif
-
-#if CONFIG_SCAN_FOR_BT510
-	/* After filtering for BT510 sensors, send a message so we can
-	process ads in Sensor Task context.
-	This prevents the BLE RX task from being blocked. */
-	if (SensorTable_MatchBt510(ad)) {
-		AdvMsg_t *pMsg = BufferPool_Take(sizeof(AdvMsg_t));
-		if (pMsg == NULL) {
-			return;
-		}
-
-		pMsg->header.msgCode = FMC_ADV;
-		pMsg->header.rxId = FWK_ID_SENSOR_TASK;
-
-		pMsg->rssi = rssi;
-		pMsg->type = type;
-		pMsg->ad.len = ad->len;
-		memcpy(&pMsg->addr, addr, sizeof(bt_addr_le_t));
-		memcpy(pMsg->ad.data, ad->data, MIN(MAX_AD_SIZE, ad->len));
-		FRAMEWORK_MSG_SEND(pMsg);
-	}
-#endif
 }
 
 /******************************************************************************/
