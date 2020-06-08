@@ -41,9 +41,6 @@ void oob_ble_set_callback(sensor_updated_function_t func);
 
 struct bt_conn *oob_ble_get_central_connection(void);
 
-void bl654_sensor_adv_handler(const bt_addr_le_t *addr, s8_t rssi, u8_t type,
-			      Ad_t *ad);
-
 #ifdef __cplusplus
 }
 #endif

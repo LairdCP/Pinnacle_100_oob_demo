@@ -194,6 +194,21 @@ void SensorTable_Initialize(void)
 	pLte = lteGetStatus();
 }
 
+bool SensorTable_MatchBt510(struct net_buf_simple *ad)
+{
+	AdHandle_t manHandle = AdFind_Type(
+		ad->data, ad->len, BT_DATA_MANUFACTURER_DATA, BT_DATA_INVALID);
+	if (manHandle.pPayload == NULL) {
+		return false;
+	}
+
+	if (FindBt510ScanResponse(&manHandle)) {
+		return true;
+	}
+
+	return FindBt510Advertisement(&manHandle);
+}
+
 /* If a new event has occurred then generate a message to send sensor event
  * data to AWS.
  */

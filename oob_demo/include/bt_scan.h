@@ -17,28 +17,45 @@
 /******************************************************************************/
 #include <zephyr/types.h>
 #include <stddef.h>
+#include <bluetooth/bluetooth.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+/******************************************************************************/
+/* Global Function Prototypes                                                 */
+/******************************************************************************/
 /**
- * @brief Starts scanning if the number of stop requests is zero.
- */
-void bt_scan_start(void);
-
-/**
- * @brief Stops scanning and increments the number of stop requests.
- */
-void bt_scan_stop(void);
-
-/**
- * @brief Decrements the number of stop requests and then calls bt_scan_start.
+ * @brief Register user of scan module.
  *
- * @note A user should only call this once for each time that it has called
- * stop.
+ * @param pId user id
+ * @param cb Register advertisement handler callback
  */
-void bt_scan_resume(void);
+bool bt_scan_register(int *pId, bt_le_scan_cb_t *cb);
+
+/**
+ * @brief Start scanning (if there aren't any stop requests).
+ */
+void bt_scan_start(int id);
+
+/**
+ * @brief Stop scanning.
+ */
+void bt_scan_stop(int id);
+
+/**
+ * @brief Clear stop request.
+ * Restart scanning if there aren't any stop requests and there is at least
+ * one start request.
+ */
+void bt_scan_resume(int id);
+
+/**
+ * @brief Clear stop request, set start request, and start scanning
+ * if there aren't any other stop requests.
+ */
+void bt_scan_restart(int id);
 
 #ifdef __cplusplus
 }

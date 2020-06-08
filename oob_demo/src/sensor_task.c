@@ -36,14 +36,6 @@ LOG_MODULE_REGISTER(sensor_task);
 /******************************************************************************/
 /* Local Constant, Macro and Type Definitions                                 */
 /******************************************************************************/
-#ifndef CONFIG_SCAN_FOR_BL654_SENSOR
-#define CONFIG_SCAN_FOR_BL654_SENSOR 0
-#endif
-
-#ifndef CONFIG_SCAN_FOR_BT510
-#define CONFIG_SCAN_FOR_BT510 0
-#endif
-
 #ifndef SENSOR_TASK_PRIORITY
 #define SENSOR_TASK_PRIORITY K_PRIO_PREEMPT(1)
 #endif
@@ -53,7 +45,7 @@ LOG_MODULE_REGISTER(sensor_task);
 #endif
 
 #ifndef SENSOR_TASK_QUEUE_DEPTH
-#define SENSOR_TASK_QUEUE_DEPTH 100
+#define SENSOR_TASK_QUEUE_DEPTH 32
 #endif
 
 /** This is the timer tick rate for how often the AWS state is checked */
@@ -92,6 +84,7 @@ typedef struct SensorTask {
 	struct k_timer fifoTimer;
 	struct k_timer resetTimer;
 	u32_t fifoTicks;
+	int scanUserId;
 } SensorTaskObj_t;
 
 /******************************************************************************/
@@ -195,6 +188,11 @@ static void MtuCallback(struct bt_conn *conn, u8_t err,
 static void SendSensorResetTimerCallback(struct k_timer *timer_id);
 static void AwsFifoMonitorTimerCallbackIsr(struct k_timer *timer_id);
 
+#if CONFIG_SCAN_FOR_BT510
+static void SensorTaskAdvHandler(const bt_addr_le_t *addr, s8_t rssi, u8_t type,
+				 struct net_buf_simple *ad);
+#endif
+
 /******************************************************************************/
 /* Framework Message Dispatcher                                               */
 /******************************************************************************/
@@ -276,8 +274,18 @@ static void SensorTaskThread(void *pArg1, void *pArg2, void *pArg3)
 	k_timer_init(&pObj->resetTimer, SendSensorResetTimerCallback, NULL);
 	k_timer_user_data_set(&pObj->resetTimer, pObj);
 
+#if CONFIG_SCAN_FOR_BT510
+	bt_scan_register(&pObj->scanUserId, SensorTaskAdvHandler);
+	bt_scan_start(pObj->scanUserId);
+#endif
+
 	while (true) {
 		Framework_MsgReceiver(&pObj->msgTask.rxer);
+		u32_t numUsed = k_msgq_num_used_get(pObj->msgTask.rxer.pQueue);
+		if (numUsed > (SENSOR_TASK_QUEUE_DEPTH / 2)) {
+			LOG_WRN("Sensor Task filled to %u of %u", numUsed,
+				SENSOR_TASK_QUEUE_DEPTH);
+		}
 	}
 }
 
@@ -286,14 +294,8 @@ DispatchResult_t AdvertisementMsgHandler(FwkMsgReceiver_t *pMsgRxer,
 {
 	UNUSED_PARAMETER(pMsgRxer);
 	AdvMsg_t *pAdvMsg = (AdvMsg_t *)pMsg;
-	if (CONFIG_SCAN_FOR_BL654_SENSOR) {
-		bl654_sensor_adv_handler(&pAdvMsg->addr, pAdvMsg->rssi,
+	SensorTable_AdvertisementHandler(&pAdvMsg->addr, pAdvMsg->rssi,
 					 pAdvMsg->type, &pAdvMsg->ad);
-	}
-	if (CONFIG_SCAN_FOR_BT510) {
-		SensorTable_AdvertisementHandler(&pAdvMsg->addr, pAdvMsg->rssi,
-						 pAdvMsg->type, &pAdvMsg->ad);
-	}
 	return DISPATCH_OK;
 }
 
@@ -468,7 +470,7 @@ static DispatchResult_t ConnectRequestMsgHandler(FwkMsgReceiver_t *pMsgRxer,
 	SensorTaskObj_t *pObj = FWK_TASK_CONTAINER(SensorTaskObj_t);
 
 	if (pObj->pCmdMsg == NULL && pObj->conn == NULL) { /* not busy */
-		bt_scan_stop();
+		bt_scan_stop(pObj->scanUserId);
 		Bracket_Reset(pObj->pBracket);
 		pObj->pCmdMsg = (SensorCmdMsg_t *)pMsg;
 		pObj->connected = false;
@@ -519,7 +521,7 @@ static DispatchResult_t DisconnectMsgHandler(FwkMsgReceiver_t *pMsgRxer,
 
 	bt_conn_unref(pObj->conn);
 	pObj->conn = NULL;
-	bt_scan_resume();
+	bt_scan_restart(pObj->scanUserId);
 
 	return DISPATCH_OK;
 }
@@ -902,3 +904,32 @@ static void AwsFifoMonitorTimerCallbackIsr(struct k_timer *timer_id)
 		}
 	}
 }
+
+/******************************************************************************/
+/* Occurs in BT RX Thread context                                             */
+/******************************************************************************/
+#if CONFIG_SCAN_FOR_BT510
+static void SensorTaskAdvHandler(const bt_addr_le_t *addr, s8_t rssi, u8_t type,
+				 struct net_buf_simple *ad)
+{
+	/* After filtering for BT510 sensors, send a message so we can
+	process ads in Sensor Task context.
+	This prevents the BLE RX task from being blocked. */
+	if (SensorTable_MatchBt510(ad)) {
+		AdvMsg_t *pMsg = BufferPool_Take(sizeof(AdvMsg_t));
+		if (pMsg == NULL) {
+			return;
+		}
+
+		pMsg->header.msgCode = FMC_ADV;
+		pMsg->header.rxId = FWK_ID_SENSOR_TASK;
+
+		pMsg->rssi = rssi;
+		pMsg->type = type;
+		pMsg->ad.len = ad->len;
+		memcpy(&pMsg->addr, addr, sizeof(bt_addr_le_t));
+		memcpy(pMsg->ad.data, ad->data, MIN(MAX_AD_SIZE, ad->len));
+		FRAMEWORK_MSG_SEND(pMsg);
+	}
+}
+#endif

@@ -123,6 +123,9 @@ static void discover_failed_handler(struct bt_conn *conn, int err);
 
 static int startAdvertising(void);
 
+static void bl654_sensor_adv_handler(const bt_addr_le_t *addr, s8_t rssi,
+				     u8_t type, struct net_buf_simple *ad);
+
 /******************************************************************************/
 /* Local Data Definitions                                                     */
 /******************************************************************************/
@@ -151,56 +154,11 @@ static struct bt_conn_cb conn_callbacks = {
 	.disconnected = disconnected,
 };
 
+static int scan_id;
+
 /******************************************************************************/
 /* Global Function Definitions                                                */
 /******************************************************************************/
-void bl654_sensor_adv_handler(const bt_addr_le_t *addr, s8_t rssi, u8_t type,
-			      Ad_t *ad)
-{
-	bool found = false;
-	char bt_addr[BT_ADDR_LE_STR_LEN];
-	AdHandle_t nameHandle = { NULL, 0 };
-
-	/* Leave this function if already connected */
-	if (sensor_conn) {
-		return;
-	}
-
-	/* We're only interested in connectable events */
-	if (type != BT_LE_ADV_IND && type != BT_LE_ADV_DIRECT_IND) {
-		return;
-	}
-
-	/* Check if this is the device we are looking for */
-	nameHandle = AdFind_Name(ad->data, ad->len);
-	if (nameHandle.pPayload != NULL) {
-		if (strncmp(BT_REMOTE_DEVICE_NAME_STR, nameHandle.pPayload,
-			    strlen(BT_REMOTE_DEVICE_NAME_STR)) == 0) {
-			found = true;
-		}
-	}
-
-	if (!found) {
-		return;
-	}
-	BLE_LOG_INF("Found BL654 Sensor");
-
-	/* Can't connect while scanning for BT510s */
-	bt_scan_stop();
-
-	/* Connect to device */
-	bt_addr_le_to_str(addr, bt_addr, sizeof(bt_addr));
-	sensor_conn = bt_conn_create_le(addr, BT_LE_CONN_PARAM_DEFAULT);
-	if (sensor_conn != NULL) {
-		BLE_LOG_INF("Attempting to connect to remote BLE device %s",
-			    log_strdup(bt_addr));
-	} else {
-		BLE_LOG_ERR("Failed to connect to remote BLE device %s",
-			    log_strdup(bt_addr));
-		set_ble_state(BT_DEMO_APP_STATE_FINDING_DEVICE);
-	}
-}
-
 /* Function for initialising the BLE portion of the OOB demo */
 void oob_ble_initialise(const char *imei)
 {
@@ -234,6 +192,8 @@ void oob_ble_initialise(const char *imei)
 
 	startAdvertising();
 
+	bt_scan_register(&scan_id, bl654_sensor_adv_handler);
+
 	/* Initialize the state to 'looking for device' */
 	set_ble_state(BT_DEMO_APP_STATE_FINDING_DEVICE);
 }
@@ -252,14 +212,56 @@ struct bt_conn *oob_ble_get_central_connection(void)
 /******************************************************************************/
 /* Local Function Definitions                                                 */
 /******************************************************************************/
+static void bl654_sensor_adv_handler(const bt_addr_le_t *addr, s8_t rssi,
+				     u8_t type, struct net_buf_simple *ad)
+{
+#if CONFIG_SCAN_FOR_BL654_SENSOR
+	char bt_addr[BT_ADDR_LE_STR_LEN];
+
+	/* Leave this function if already connected */
+	if (sensor_conn) {
+		return;
+	}
+
+	/* We're only interested in connectable events */
+	if (type != BT_LE_ADV_IND && type != BT_LE_ADV_DIRECT_IND) {
+		return;
+	}
+
+	/* Check if this is the device we are looking for */
+	if (!AdFind_MatchName(ad->data, ad->len, CONFIG_BL654_SENSOR_NAME,
+			      strlen(CONFIG_BL654_SENSOR_NAME))) {
+		return;
+	}
+	LOG_INF("Found BL654 Sensor");
+
+	/* Can't connect while scanning */
+	bt_scan_stop(scan_id);
+
+	/* Connect to device */
+	bt_addr_le_to_str(addr, bt_addr, sizeof(bt_addr));
+	sensor_conn = bt_conn_create_le(addr, BT_LE_CONN_PARAM_DEFAULT);
+	if (sensor_conn != NULL) {
+		LOG_INF("Attempting to connect to remote BLE device %s",
+			log_strdup(bt_addr));
+	} else {
+		LOG_ERR("Failed to connect to remote BLE device %s",
+			log_strdup(bt_addr));
+		set_ble_state(BT_DEMO_APP_STATE_FINDING_DEVICE);
+	}
+#endif
+}
+
 static void discover_services_work_callback(struct k_work *work)
 {
 	ARG_UNUSED(work);
-	memcpy(&uuid, BT_UUID_ESS, sizeof(uuid));
-	set_ble_state(BT_DEMO_APP_STATE_FINDING_SERVICE);
-	int err = find_service(sensor_conn, uuid);
-	if (err) {
-		discover_failed_handler(sensor_conn, err);
+	if (sensor_conn) {
+		memcpy(&uuid, BT_UUID_ESS, sizeof(uuid));
+		set_ble_state(BT_DEMO_APP_STATE_FINDING_SERVICE);
+		int err = find_service(sensor_conn, uuid);
+		if (err) {
+			discover_failed_handler(sensor_conn, err);
+		}
 	}
 }
 
@@ -297,6 +299,9 @@ static u8_t notify_func_callback(struct bt_conn *conn,
 				   .value_handle) {
 			BLE_LOG_WRN("Unsubscribed from pressure");
 		}
+		k_delayed_work_submit(
+			&discover_services_work,
+			K_SECONDS(DISCOVER_SERVICES_DELAY_SECONDS));
 		params->value_handle = 0;
 		return BT_GATT_ITER_STOP;
 	}
@@ -703,13 +708,13 @@ static void set_ble_state(enum ble_state state)
 	case BT_DEMO_APP_STATE_CONNECTED_AND_CONFIGURED:
 		led_turn_on(BLUE_LED1);
 		/* BL654 Sensor was found, now continue listening for BT510 */
-		bt_scan_resume();
+		bt_scan_resume(scan_id);
 		break;
 
 	case BT_DEMO_APP_STATE_FINDING_DEVICE:
 		led_blink(BLUE_LED1, &LED_SENSOR_SEARCH_PATTERN);
 		bss_set_sensor_bt_addr(NULL);
-		bt_scan_start();
+		bt_scan_restart(scan_id);
 		break;
 
 	default:

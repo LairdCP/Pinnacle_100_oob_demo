@@ -38,6 +38,13 @@ config BL654_SENSOR_SEND_TO_AWS_RATE_SECONDS
     default 30
     range 30 3600
 
+config BL654_SENSOR_NAME
+    string "The advertised name of the BL654 sensor (that is scanned for)"
+    default "BL654 BME280 Sensor"
+    help
+        Any sensor with the ESS service should work
+        (temperature, humidity, and pressure).
+
 config USE_SINGLE_AWS_TOPIC
     bool "Send all sensor data to gateway topic"
     help
@@ -132,6 +139,14 @@ config LWM2M_CLIENT_ENDPOINT_MAX_SIZE
     default 64
 
 endmenu
+
+config BT_SCAN_MAX_USERS
+	int "Maximum number of users of the scan module"
+	range 1 32
+	default 2
+
+config BT_SCAN_VERBOSE_ADV_HANDLER
+	bool "Enable Verbose logging of advertisements"
 
 endif # USER_APPLICATION
 
