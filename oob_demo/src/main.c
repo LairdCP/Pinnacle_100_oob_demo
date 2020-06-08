@@ -190,7 +190,6 @@ void main(void)
 
 	/* Start up BLE portion of the demo */
 	cell_svc_init();
-	cell_svc_assign_connection_handler_getter(single_peripheral_get_conn);
 	cell_svc_set_imei(lteInfo->IMEI);
 	cell_svc_set_fw_ver(lteInfo->radio_version);
 	cell_svc_set_iccid(lteInfo->ICCID);
@@ -198,7 +197,6 @@ void main(void)
 
 	/* Setup the power service */
 	power_svc_init();
-	power_svc_assign_connection_handler_getter(single_peripheral_get_conn);
 	power_init();
 
 	bootloader_init();

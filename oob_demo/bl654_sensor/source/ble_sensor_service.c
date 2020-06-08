@@ -51,7 +51,7 @@ struct ccc_table {
 /******************************************************************************/
 static struct ble_sensor_service bss;
 static struct ccc_table ccc;
-static struct bt_conn *(*get_connection_handle_fptr)(void);
+static struct bt_conn *bss_conn = NULL;
 
 /******************************************************************************/
 /* Local Function Prototypes                                                  */
@@ -67,6 +67,9 @@ static void sensor_bt_addr_ccc_handler(const struct bt_gatt_attr *attr,
 				       u16_t value);
 
 static void bss_notify(bool notify, u16_t index, u16_t length);
+
+static void bss_connected(struct bt_conn *conn, u8_t err);
+static void bss_disconnected(struct bt_conn *conn, u8_t reason);
 
 /******************************************************************************/
 /* Sensor Service                                                             */
@@ -87,14 +90,14 @@ static struct bt_gatt_attr sensor_attrs[] = {
 
 static struct bt_gatt_service sensor_service = BT_GATT_SERVICE(sensor_attrs);
 
+static struct bt_conn_cb bss_conn_callbacks = {
+	.connected = bss_connected,
+	.disconnected = bss_disconnected,
+};
+
 /******************************************************************************/
 /* Global Function Definitions                                                */
 /******************************************************************************/
-void bss_assign_connection_handler_getter(struct bt_conn *(*function)(void))
-{
-	get_connection_handle_fptr = function;
-}
-
 void bss_set_sensor_state(u8_t state)
 {
 	bss.sensor_state = state;
@@ -115,6 +118,8 @@ void bss_set_sensor_bt_addr(char *addr)
 void bss_init()
 {
 	bt_gatt_service_register(&sensor_service);
+
+	bt_conn_cb_register(&bss_conn_callbacks);
 
 	size_t gatt_size = (sizeof(sensor_attrs) / sizeof(sensor_attrs[0]));
 	bss.sensor_state_index = lbt_find_gatt_index(&SENSOR_STATE_UUID.uuid,
@@ -148,11 +153,7 @@ static void sensor_bt_addr_ccc_handler(const struct bt_gatt_attr *attr,
 
 static void bss_notify(bool notify, u16_t index, u16_t length)
 {
-	if (get_connection_handle_fptr == NULL) {
-		return;
-	}
-
-	struct bt_conn *connection_handle = get_connection_handle_fptr();
+	struct bt_conn *connection_handle = bss_get_conn();
 	if (connection_handle != NULL) {
 		if (notify) {
 			bt_gatt_notify(connection_handle,
@@ -161,4 +162,35 @@ static void bss_notify(bool notify, u16_t index, u16_t length)
 				       length);
 		}
 	}
+}
+
+static void bss_connected(struct bt_conn *conn, u8_t err)
+{
+	if (err) {
+		return;
+	}
+
+	if (!lbt_slave_role(conn)) {
+		return;
+	}
+
+	bss_conn = bt_conn_ref(conn);
+}
+
+static void bss_disconnected(struct bt_conn *conn, u8_t reason)
+{
+	if (!lbt_slave_role(conn)) {
+		return;
+	}
+
+	if (bss_conn) {
+		bt_conn_unref(bss_conn);
+		bss_conn = NULL;
+	}
+}
+
+/* The weak implementation can be used for single peripheral designs. */
+__weak struct bt_conn *bss_get_conn(void)
+{
+	return bss_conn;
 }

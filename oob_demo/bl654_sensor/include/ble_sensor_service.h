@@ -22,11 +22,8 @@ extern "C" {
 /******************************************************************************/
 /* Global Function Prototypes                                                 */
 /******************************************************************************/
-/**
- * @param function that sensor service should use to get connection handle when
- * determining if a value should by notified.
- */
-void bss_assign_connection_handler_getter(struct bt_conn *(*function)(void));
+/* For multi-peripheral device the weak implementation can be overriden. */
+struct bt_conn *bss_get_conn(void);
 
 void bss_set_sensor_state(u8_t state);
 

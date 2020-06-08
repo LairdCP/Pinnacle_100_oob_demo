@@ -26,7 +26,6 @@ LOG_MODULE_REGISTER(bl654_sensor);
 #include "ad_find.h"
 #include "bt_scan.h"
 #include "ble_sensor_service.h"
-#include "single_peripheral.h"
 #include "bl654_sensor.h"
 
 /******************************************************************************/
@@ -160,7 +159,6 @@ static int scan_id;
 void bl654_sensor_initialize(void)
 {
 	bss_init();
-	bss_assign_connection_handler_getter(single_peripheral_get_conn);
 
 	k_delayed_work_init(&discover_services_work,
 			    discover_services_work_callback);
