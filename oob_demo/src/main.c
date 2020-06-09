@@ -48,6 +48,7 @@ LOG_MODULE_REGISTER(oob_main);
 
 #ifdef CONFIG_LWM2M
 #include "lwm2m_client.h"
+#include "ble_lwm2m_service.h"
 #endif
 
 /******************************************************************************/
@@ -133,6 +134,11 @@ void main(void)
 {
 	int rc;
 
+#ifdef CONFIG_LWM2M
+	printk("\nOOB demo - LwM2M v%s\n", APP_VERSION_STRING);
+#else
+	printk("\nOOB demo - AWS v%s\n", APP_VERSION_STRING);
+#endif
 	/* init LEDS */
 	led_init();
 
@@ -196,6 +202,10 @@ void main(void)
 	} else {
 		aws_svc_set_status(NULL, AWS_STATUS_NOT_PROVISIONED);
 	}
+
+#ifdef CONFIG_LWM2M
+	ble_lwm2m_service_init();
+#endif
 
 	oob_ble_initialise(lteInfo->IMEI);
 	oob_ble_set_callback(sensorUpdated);

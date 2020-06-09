@@ -80,8 +80,6 @@ static size_t lwm2m_str_size(const char *s);
 /******************************************************************************/
 void lwm2m_client_init(void)
 {
-	ble_lwm2m_service_init();
-
 	lwm2m_client_init_internal();
 }
 

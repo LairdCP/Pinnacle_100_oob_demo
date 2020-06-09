@@ -900,7 +900,7 @@ static void AwsFifoMonitorTimerCallbackIsr(struct k_timer *timer_id)
 		pObj->fifoTicks = 0;
 		size_t flushed = Framework_Flush(FWK_ID_AWS);
 		if (flushed > 0) {
-			LOG_WRN("Flushed %u AWS messages", flushed);
+			LOG_WRN("Flushed %u cloud messages", flushed);
 		}
 	}
 }

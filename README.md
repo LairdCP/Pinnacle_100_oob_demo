@@ -19,6 +19,7 @@
 7. **[LED behavior](#led-behavior)**
 8. **[Development](#development)**  
    [Cloning and Building the Source](#cloning-and-building-the-source)  
+   [LwM2M Demo with NB-IoT](#lwm2m-demo-with-nb-iot)  
    [BLE Profiles](#ble-profiles)  
    [Development and Debug](#development-and-debug)  
 
@@ -242,6 +243,12 @@ The Red LED (LED3) will blink when the Pinnacle is searching for a cellular netw
 ### Cloning and Building the Source
 
 This is a Zephyr based repository, **DO NOT** `git clone` this repo. To clone and build the project properly, please see the instructions in the [Pinnacle_100_OOB_Demo_Manifest](https://github.com/LairdCP/Pinnacle_100_OOB_Demo_Manifest) repository
+
+### LwM2M Demo with NB-IoT
+
+The OOB Demo can be re-compiled to work with NB-IoT and LwM2M communication to the cloud.  See the `build-lwm2m` task in [tasks.json](.vscode/tasks.json).
+
+For more details on the LwM2M demo [read here](docs/readme_lwm2m.md).
 
 ### BLE Profiles
 
