@@ -563,6 +563,9 @@ static void appStateAwsConnect(void)
 		return;
 	}
 
+	setAwsStatusWrapper(oob_ble_get_central_connection(),
+			    AWS_STATUS_CONNECTING);
+
 	if (awsConnect() != 0) {
 		MAIN_LOG_ERR("Could not connect to AWS");
 		setAwsStatusWrapper(oob_ble_get_central_connection(),
@@ -576,9 +579,6 @@ static void appStateAwsConnect(void)
 	nvStoreCommissioned(true);
 	commissioned = true;
 	allowCommissioning = false;
-
-	setAwsStatusWrapper(oob_ble_get_central_connection(),
-			    AWS_STATUS_CONNECTING);
 
 	appSetNextState(appStateAwsInitShadow);
 }
