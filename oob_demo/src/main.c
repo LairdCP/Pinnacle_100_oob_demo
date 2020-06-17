@@ -334,9 +334,6 @@ static void appStateAwsSendSensorData(void)
 		return;
 	}
 
-	setAwsStatusWrapper(oob_ble_get_central_connection(),
-			    AWS_STATUS_CONNECTED);
-
 	if (!CONFIG_USE_SINGLE_AWS_TOPIC) {
 		if (!subscribedToGetAccepted) {
 			rc = awsGetAcceptedSubscribe();
@@ -576,9 +573,8 @@ static void appStateAwsConnect(void)
 		return;
 	}
 
-	nvStoreCommissioned(true);
-	commissioned = true;
-	allowCommissioning = false;
+	setAwsStatusWrapper(oob_ble_get_central_connection(),
+			    AWS_STATUS_CONNECTED);
 
 	appSetNextState(appStateAwsInitShadow);
 }
@@ -727,13 +723,22 @@ static void decommission(void)
 	printk("Device is decommissioned\n");
 }
 
+static void set_commissioned(void)
+{
+	nvStoreCommissioned(true);
+	commissioned = true;
+	allowCommissioning = false;
+	setAwsStatusWrapper(oob_ble_get_central_connection(),
+			    AWS_STATUS_DISCONNECTED);
+	k_sem_give(&rx_cert_sem);
+	printk("Device is commissioned\n");
+}
+
 static void awsSvcEvent(enum aws_svc_event event)
 {
 	switch (event) {
 	case AWS_SVC_EVENT_SETTINGS_SAVED:
-		devCertSet = true;
-		devKeySet = true;
-		k_sem_give(&rx_cert_sem);
+		set_commissioned();
 		break;
 	case AWS_SVC_EVENT_SETTINGS_CLEARED:
 		decommission();
