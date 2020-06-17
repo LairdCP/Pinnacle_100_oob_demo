@@ -28,23 +28,30 @@ LOG_MODULE_REGISTER(oob_main);
 #include <shell/shell.h>
 #include <shell/shell_uart.h>
 
-#include "oob_common.h"
-#include "led.h"
-#include "oob_ble.h"
+#include "led_configuration.h"
 #include "lte.h"
 #include "aws.h"
 #include "nv.h"
 #include "ble_cellular_service.h"
 #include "ble_aws_service.h"
-#include "ble_sensor_service.h"
 #include "ble_power_service.h"
-#include "power.h"
+#include "laird_power.h"
 #include "dis.h"
 #include "bootloader.h"
 #include "FrameworkIncludes.h"
-#include "sensor_task.h"
-#include "sensor_table.h"
 #include "laird_utility_macros.h"
+#include "single_peripheral.h"
+#include "print_thread.h"
+#include "string_util.h"
+#include "app_version.h"
+
+#if CONFIG_BL654_SENSOR
+#include "bl654_sensor.h"
+#endif
+
+#if CONFIG_BLUEGRASS
+#include "bluegrass.h"
+#endif
 
 #ifdef CONFIG_LWM2M
 #include "lwm2m_client.h"
@@ -52,11 +59,24 @@ LOG_MODULE_REGISTER(oob_main);
 #endif
 
 /******************************************************************************/
-/* Global Constants, Macros and Type Definitions                              */
+/* Local Constant, Macro and Type Definitions                                 */
 /******************************************************************************/
-#ifndef CONFIG_USE_SINGLE_AWS_TOPIC
-#define CONFIG_USE_SINGLE_AWS_TOPIC 0
-#endif
+#define WAIT_TIME_BEFORE_RETRY_TICKS K_SECONDS(10)
+
+#define NUMBER_OF_IMEI_DIGITS_TO_USE_IN_DEV_NAME 7
+
+enum CREDENTIAL_TYPE { CREDENTIAL_CERT, CREDENTIAL_KEY };
+
+enum APP_ERROR {
+	APP_ERR_NOT_READY = -1,
+	APP_ERR_COMMISSION_DISALLOWED = -2,
+	APP_ERR_CRED_TOO_LARGE = -3,
+	APP_ERR_UNKNOWN_CRED = -4,
+	APP_ERR_READ_CERT = -5,
+	APP_ERR_READ_KEY = -6,
+};
+
+typedef void (*app_state_function_t)(void);
 
 /******************************************************************************/
 /* Local Data Definitions                                                     */
@@ -64,20 +84,10 @@ LOG_MODULE_REGISTER(oob_main);
 K_SEM_DEFINE(lte_ready_sem, 0, 1);
 K_SEM_DEFINE(rx_cert_sem, 0, 1);
 
-static float temperatureReading = 0;
-static float humidityReading = 0;
-static float pressureReading = 0;
 static bool initShadow = true;
 static bool resolveAwsServer = true;
 static bool lteNeverConnected = true;
 
-static bool bUpdatedTemperature = false;
-static bool bUpdatedHumidity = false;
-static bool bUpdatedPressure = false;
-
-static bool gatewaySubscribed;
-static bool subscribedToGetAccepted;
-static bool getShadowProcessed;
 static bool commissioned;
 static bool allowCommissioning = false;
 static bool appReady = false;
@@ -89,9 +99,9 @@ struct lte_status *lteInfo;
 
 static FwkMsgReceiver_t awsMsgReceiver;
 
-K_MSGQ_DEFINE(sensorQ, FWK_QUEUE_ENTRY_SIZE, 16, FWK_QUEUE_ALIGNMENT);
+K_MSGQ_DEFINE(awsQ, FWK_QUEUE_ENTRY_SIZE, 16, FWK_QUEUE_ALIGNMENT);
 
-static struct led_blink_pattern dataSendLedPattern;
+static struct k_timer awsKeepAliveTimer;
 
 /******************************************************************************/
 /* Local Function Prototypes                                                  */
@@ -111,13 +121,11 @@ static const char *getAppStateString(app_state_function_t state);
 
 static void setAwsStatusWrapper(struct bt_conn *conn, enum aws_status status);
 
+static void initializeBle(const char *imei);
 static void initializeAwsMsgReceiver(void);
-static void awsMsgHandler(s32_t *blinks);
+static void awsMsgHandler(void);
 static void awsSvcEvent(enum aws_svc_event event);
 static int setAwsCredentials(void);
-static void generateShadowRequestMsg(void);
-static void ledPatternCompleteCallback(void);
-static void sensorUpdated(u8_t sensor, s32_t reading);
 static void lteEvent(enum lte_event event);
 static void softwareReset(u32_t DelayMs);
 
@@ -126,6 +134,11 @@ static void appStateInitLwm2mClient(void);
 static void appStateLwm2m(void);
 static void lwm2mMsgHandler(void);
 #endif
+
+static void configure_leds(void);
+
+static void StartKeepAliveTimer(void);
+static void AwsKeepAliveTimerCallbackIsr(struct k_timer *timer_id);
 
 /******************************************************************************/
 /* Global Function Definitions                                                */
@@ -139,12 +152,10 @@ void main(void)
 #else
 	printk("\nOOB demo - AWS v%s\n", APP_VERSION_STRING);
 #endif
-	/* init LEDS */
-	led_init();
+
+	configure_leds();
 
 	Framework_Initialize();
-	SensorTask_Initialize();
-	initializeAwsMsgReceiver();
 
 	/* Init NV storage */
 	rc = nvInit();
@@ -170,24 +181,31 @@ void main(void)
 		goto exit;
 	}
 
-	dis_initialize();
+	initializeAwsMsgReceiver();
+	k_timer_init(&awsKeepAliveTimer, AwsKeepAliveTimerCallbackIsr, NULL);
+
+	initializeBle(lteInfo->IMEI);
+	single_peripheral_initialize();
+
+#if CONFIG_BL654_SENSOR
+	bl654_sensor_initialize();
+#endif
+
+#if CONFIG_BLUEGRASS
+	Bluegrass_Initialize(awsMsgReceiver.pQueue);
+#endif
+
+	dis_initialize(APP_VERSION_STRING);
 
 	/* Start up BLE portion of the demo */
 	cell_svc_init();
-	cell_svc_assign_connection_handler_getter(
-		oob_ble_get_central_connection);
 	cell_svc_set_imei(lteInfo->IMEI);
 	cell_svc_set_fw_ver(lteInfo->radio_version);
 	cell_svc_set_iccid(lteInfo->ICCID);
 	cell_svc_set_serial_number(lteInfo->serialNumber);
 
-	bss_init();
-	bss_assign_connection_handler_getter(oob_ble_get_central_connection);
-
 	/* Setup the power service */
 	power_svc_init();
-	power_svc_assign_connection_handler_getter(
-		oob_ble_get_central_connection);
 	power_init();
 
 	bootloader_init();
@@ -207,21 +225,14 @@ void main(void)
 	ble_lwm2m_service_init();
 #endif
 
-	oob_ble_initialise(lteInfo->IMEI);
-	oob_ble_set_callback(sensorUpdated);
-
 	appReady = true;
 	printk("\n!!!!!!!! App is ready! !!!!!!!!\n");
 
 	appSetNextState(appStateStartup);
 
-	led_register_pattern_complete_function(GREEN_LED2,
-					       ledPatternCompleteCallback);
-	dataSendLedPattern.on_time = DATA_SEND_LED_ON_TIME_TICKS;
-	dataSendLedPattern.off_time = DATA_SEND_LED_OFF_TIME_TICKS;
-	dataSendLedPattern.repeat_count = 0;
-
+#if CONFIG_PRINT_THREAD_LIST
 	print_thread_list();
+#endif
 
 	while (true) {
 		appState();
@@ -259,51 +270,32 @@ EXTERNED void Framework_AssertionHandler(char *file, int line)
 /******************************************************************************/
 /* Local Function Definitions                                                 */
 /******************************************************************************/
-
-/* This is a callback function which receives sensor readings */
-static void sensorUpdated(u8_t sensor, s32_t reading)
+static void initializeBle(const char *imei)
 {
-	static u64_t bmeEventTime = 0;
-	/* On init send first data immediately. */
-	static u32_t delta =
-		K_MSEC(CONFIG_BL654_SENSOR_SEND_TO_AWS_RATE_SECONDS);
+	int err;
+	char devName[sizeof(CONFIG_BT_DEVICE_NAME "-") +
+		     NUMBER_OF_IMEI_DIGITS_TO_USE_IN_DEV_NAME];
+	int devNameEnd;
+	int imeiEnd;
 
-	if (sensor == SENSOR_TYPE_TEMPERATURE) {
-		/* Divide by 100 to get xx.xxC format */
-		temperatureReading = reading / 100.0;
-		bUpdatedTemperature = true;
-	} else if (sensor == SENSOR_TYPE_HUMIDITY) {
-		/* Divide by 100 to get xx.xx% format */
-		humidityReading = reading / 100.0;
-		bUpdatedHumidity = true;
-	} else if (sensor == SENSOR_TYPE_PRESSURE) {
-		/* Divide by 10 to get x.xPa format */
-		pressureReading = reading / 10.0;
-		bUpdatedPressure = true;
-	}
-
-	delta += k_uptime_delta_32(&bmeEventTime);
-	if (delta < K_MSEC(CONFIG_BL654_SENSOR_SEND_TO_AWS_RATE_SECONDS)) {
+	err = bt_enable(NULL);
+	if (err) {
+		LOG_ERR("Bluetooth init failed (err %d)", err);
 		return;
 	}
 
-	if (bUpdatedTemperature && bUpdatedHumidity && bUpdatedPressure) {
-		BL654SensorMsg_t *pMsg =
-			(BL654SensorMsg_t *)BufferPool_TryToTake(
-				sizeof(BL654SensorMsg_t));
-		if (pMsg == NULL) {
-			return;
-		}
-		pMsg->header.msgCode = FMC_BL654_SENSOR_EVENT;
-		pMsg->header.rxId = FWK_ID_AWS;
-		pMsg->temperatureC = temperatureReading;
-		pMsg->humidityPercent = humidityReading;
-		pMsg->pressurePa = pressureReading;
-		FRAMEWORK_MSG_SEND(pMsg);
-		bUpdatedTemperature = false;
-		bUpdatedHumidity = false;
-		bUpdatedPressure = false;
-		delta = 0;
+	LOG_INF("Bluetooth initialized");
+
+	/* add digits of IMEI to dev name */
+	strncpy(devName, CONFIG_BT_DEVICE_NAME "-", sizeof(devName) - 1);
+	devNameEnd = strlen(devName);
+	imeiEnd = strlen(imei);
+	strncat(devName + devNameEnd,
+		imei + imeiEnd - NUMBER_OF_IMEI_DIGITS_TO_USE_IN_DEV_NAME,
+		NUMBER_OF_IMEI_DIGITS_TO_USE_IN_DEV_NAME);
+	err = bt_set_name((const char *)devName);
+	if (err) {
+		LOG_ERR("Failed to set device name (%d)", err);
 	}
 }
 
@@ -324,65 +316,19 @@ static void lteEvent(enum lte_event event)
 
 static void appStateAwsSendSensorData(void)
 {
-	int rc;
-	s32_t blinks = 0;
-
 	/* If decommissioned then disconnect. */
 	if (!commissioned || !awsConnected()) {
 		appSetNextState(appStateAwsDisconnect);
 		led_turn_off(GREEN_LED2);
 		return;
 	}
+	setAwsStatusWrapper(single_peripheral_get_conn(), AWS_STATUS_CONNECTED);
 
-	setAwsStatusWrapper(oob_ble_get_central_connection(),
-			    AWS_STATUS_CONNECTED);
+	/* Process messages until there is an error. */
+	awsMsgHandler();
 
-	if (!CONFIG_USE_SINGLE_AWS_TOPIC) {
-		if (!subscribedToGetAccepted) {
-			rc = awsGetAcceptedSubscribe();
-			if (rc == 0) {
-				subscribedToGetAccepted = true;
-			}
-		}
-
-		if (!getShadowProcessed) {
-			awsGetShadow();
-		}
-
-		if (getShadowProcessed && !gatewaySubscribed) {
-			rc = awsSubscribe(GATEWAY_TOPIC, true);
-			if (rc == 0) {
-				gatewaySubscribed = true;
-			}
-		}
-
-		if (getShadowProcessed && gatewaySubscribed) {
-			generateShadowRequestMsg();
-		}
-	}
-
-	awsMsgHandler(&blinks);
-
-	/* Periodically sending the RSSI keeps AWS connection alive. */
-	if (blinks == 0) {
-		lteInfo = lteGetStatus();
-		rc = awsPublishPinnacleData(lteInfo->rssi, lteInfo->sinr);
-		if (rc == 0) {
-			blinks += 1;
-		}
-	}
-
-	/* The RSSI is always sent. If the count is 0 there was a problem. */
-	if (blinks > 0) {
-		dataSendLedPattern.repeat_count = blinks - 1;
-		led_blink(GREEN_LED2, &dataSendLedPattern);
-	} else {
-		led_turn_off(GREEN_LED2);
-	}
-
-	if (k_msgq_num_used_get(&sensorQ) != 0) {
-		MAIN_LOG_WRN("%u unsent messages",
-			     k_msgq_num_used_get(&sensorQ));
+	if (k_msgq_num_used_get(&awsQ) != 0) {
+		MAIN_LOG_WRN("%u unsent messages", k_msgq_num_used_get(&awsQ));
 	}
 }
 
@@ -425,26 +371,27 @@ static void appStateStartup(void)
 }
 
 /* This function will throw away sensor data if it can't send it. */
-static void awsMsgHandler(s32_t *blinks)
+static void awsMsgHandler(void)
 {
 	int rc = 0;
 	FwkMsg_t *pMsg;
 	bool freeMsg;
 
 	while (rc == 0) {
+		led_turn_on(GREEN_LED2);
 		/* Remove sensor/gateway data from queue and send it to cloud.
-		 * Block if there are not any messages, but periodically send RSSI to
-		 * keep AWS connection open.
-		 */
+		Block if there are not any messages. */
 		rc = -EINVAL;
 		pMsg = NULL;
-		Framework_Receive(awsMsgReceiver.pQueue, &pMsg,
-				  K_SECONDS(CONFIG_AWS_QUEUE_TIMEOUT_SECONDS));
+		Framework_Receive(awsMsgReceiver.pQueue, &pMsg, K_FOREVER);
 		if (pMsg == NULL) {
 			return;
 		}
 		freeMsg = true;
 
+		/* BL654 data is sent to the gateway topic.  If Bluegrass is enabled,
+		then sensor data (BT510) is sent to individual topics.  It also allows
+		AWS to configure sensors. */
 		switch (pMsg->header.msgCode) {
 		case FMC_BL654_SENSOR_EVENT: {
 			BL654SensorMsg_t *pBmeMsg = (BL654SensorMsg_t *)pMsg;
@@ -453,76 +400,33 @@ static void awsMsgHandler(s32_t *blinks)
 						       pBmeMsg->pressurePa);
 		} break;
 
-		case FMC_SENSOR_PUBLISH: {
-			JsonMsg_t *pJsonMsg = (JsonMsg_t *)pMsg;
-			rc = awsSendData(pJsonMsg->buffer,
-					 CONFIG_USE_SINGLE_AWS_TOPIC ?
-						 GATEWAY_TOPIC :
-						 pJsonMsg->topic);
-		} break;
-
-		case FMC_GATEWAY_OUT: {
-			JsonMsg_t *pJsonMsg = (JsonMsg_t *)pMsg;
-			rc = awsSendData(pJsonMsg->buffer, GATEWAY_TOPIC);
-			if (rc == 0) {
-				FRAMEWORK_MSG_CREATE_AND_SEND(
-					FWK_ID_AWS, FWK_ID_SENSOR_TASK,
-					FMC_SHADOW_ACK);
-			}
-		} break;
-
-		case FMC_SUBSCRIBE: {
-			SubscribeMsg_t *pSubMsg = (SubscribeMsg_t *)pMsg;
-			rc = awsSubscribe(pSubMsg->topic, pSubMsg->subscribe);
-			pSubMsg->success = (rc == 0);
-			FRAMEWORK_MSG_REPLY(pSubMsg, FMC_SUBSCRIBE_ACK);
-			freeMsg = false;
-		} break;
-
-		case FMC_AWS_GET_ACCEPTED_RECEIVED: {
-			rc = awsGetAcceptedUnsub();
-			if (rc == 0) {
-				getShadowProcessed = true;
-			}
+		case FMC_AWS_KEEP_ALIVE: {
+			/* Periodically sending the RSSI keeps AWS connection open. */
+			lteInfo = lteGetStatus();
+			rc = awsPublishPinnacleData(lteInfo->rssi,
+						    lteInfo->sinr);
+			StartKeepAliveTimer();
 		} break;
 
 		default:
+#if CONFIG_BLUEGRASS
+			rc = Bluegrass_MsgHandler(pMsg, &freeMsg);
+#endif
 			break;
 		}
+
 		if (freeMsg) {
 			BufferPool_Free(pMsg);
 		}
 
-		if (rc != 0) {
-			MAIN_LOG_ERR("Could not send data (%d)", rc);
-		} else {
-			*blinks += 1;
-		}
-	}
-}
-
-static void ledPatternCompleteCallback(void)
-{
-	/* This occurs in LED timer context (system workq) */
-	if (awsConnected()) {
-		led_turn_on(GREEN_LED2);
-	} else {
+		/* Any error will most likely result in a disconnect. */
 		led_turn_off(GREEN_LED2);
-	}
-}
-
-/* Used to limit table generation to once per data interval. */
-static void generateShadowRequestMsg(void)
-{
-	FwkMsg_t *pMsg = BufferPool_Take(sizeof(FwkMsg_t));
-	if (pMsg != NULL) {
-		pMsg->header.msgCode = FMC_SHADOW_REQUEST;
-		pMsg->header.txId = FWK_ID_RESERVED;
-		pMsg->header.rxId = FWK_ID_SENSOR_TASK;
-		FRAMEWORK_MSG_SEND(pMsg);
-		/* Allow sensor task to process message immediately
-		 * (if system is idle). */
-		k_yield();
+		if (rc != 0) {
+			MAIN_LOG_ERR("AWS queue processing error (%d)", rc);
+		} else {
+			k_sleep(K_MSEC(
+				CONFIG_AWS_DATA_SEND_LED_OFF_DURATION_MILLISECONDS));
+		}
 	}
 }
 
@@ -551,8 +455,10 @@ static void appStateAwsInitShadow(void)
 	} else {
 		initShadow = false;
 		appSetNextState(appStateAwsSendSensorData);
-		FRAMEWORK_MSG_CREATE_AND_BROADCAST(FWK_ID_RESERVED,
-						   FMC_AWS_CONNECTED);
+		StartKeepAliveTimer();
+#if CONFIG_BLUEGRASS
+		Bluegrass_ConnectedCallback();
+#endif
 	}
 }
 
@@ -565,7 +471,7 @@ static void appStateAwsConnect(void)
 
 	if (awsConnect() != 0) {
 		MAIN_LOG_ERR("Could not connect to AWS");
-		setAwsStatusWrapper(oob_ble_get_central_connection(),
+		setAwsStatusWrapper(single_peripheral_get_conn(),
 				    AWS_STATUS_CONNECTION_ERR);
 
 		/* wait some time before trying to re-connect */
@@ -577,7 +483,7 @@ static void appStateAwsConnect(void)
 	commissioned = true;
 	allowCommissioning = false;
 
-	setAwsStatusWrapper(oob_ble_get_central_connection(),
+	setAwsStatusWrapper(single_peripheral_get_conn(),
 			    AWS_STATUS_CONNECTING);
 
 	appSetNextState(appStateAwsInitShadow);
@@ -590,12 +496,12 @@ static bool areCertsSet(void)
 
 static void appStateAwsDisconnect(void)
 {
-	setAwsStatusWrapper(oob_ble_get_central_connection(),
+	setAwsStatusWrapper(single_peripheral_get_conn(),
 			    AWS_STATUS_DISCONNECTED);
 	awsDisconnect();
-	gatewaySubscribed = false;
-	FRAMEWORK_MSG_CREATE_AND_BROADCAST(FWK_ID_RESERVED,
-					   FMC_AWS_DISCONNECTED);
+#if CONFIG_BLUEGRASS
+	Bluegrass_DisconnectedCallback();
+#endif
 	appSetNextState(appStateAwsConnect);
 }
 
@@ -613,7 +519,7 @@ static void appStateAwsResolveServer(void)
 
 static void appStateWaitForLte(void)
 {
-	setAwsStatusWrapper(oob_ble_get_central_connection(),
+	setAwsStatusWrapper(single_peripheral_get_conn(),
 			    AWS_STATUS_DISCONNECTED);
 
 	if (lteNeverConnected && !lteIsReady()) {
@@ -706,7 +612,7 @@ static int setAwsCredentials(void)
 static void appStateCommissionDevice(void)
 {
 	printk("\n\nWaiting to commission device\n\n");
-	setAwsStatusWrapper(oob_ble_get_central_connection(),
+	setAwsStatusWrapper(single_peripheral_get_conn(),
 			    AWS_STATUS_NOT_PROVISIONED);
 	allowCommissioning = true;
 
@@ -749,7 +655,7 @@ static void setAwsStatusWrapper(struct bt_conn *conn, enum aws_status status)
 static void initializeAwsMsgReceiver(void)
 {
 	awsMsgReceiver.id = FWK_ID_AWS;
-	awsMsgReceiver.pQueue = &sensorQ;
+	awsMsgReceiver.pQueue = &awsQ;
 	awsMsgReceiver.rxBlockTicks = 0; /* unused */
 	awsMsgReceiver.pMsgDispatcher = NULL; /* unused */
 	Framework_RegisterReceiver(&awsMsgReceiver);
@@ -762,6 +668,36 @@ static void softwareReset(u32_t DelayMs)
 	k_sleep(K_MSEC(DelayMs));
 	power_reboot_module(REBOOT_TYPE_NORMAL);
 #endif
+}
+
+static void configure_leds(void)
+{
+	struct led_configuration c[] = {
+		{ BLUE_LED1, LED1_DEV, LED1, LED_ACTIVE_HIGH },
+		{ GREEN_LED2, LED2_DEV, LED2, LED_ACTIVE_HIGH },
+		{ RED_LED3, LED3_DEV, LED3, LED_ACTIVE_HIGH },
+		{ GREEN_LED4, LED4_DEV, LED4, LED_ACTIVE_HIGH }
+	};
+	led_init(c, ARRAY_SIZE(c));
+}
+
+static void StartKeepAliveTimer(void)
+{
+	k_timer_start(&awsKeepAliveTimer,
+		      K_SECONDS(CONFIG_AWS_KEEP_ALIVE_SECONDS), 0);
+}
+
+static void AwsKeepAliveTimerCallbackIsr(struct k_timer *timer_id)
+{
+	UNUSED_PARAMETER(timer_id);
+	FRAMEWORK_MSG_CREATE_AND_SEND(FWK_ID_AWS, FWK_ID_AWS,
+				      FMC_AWS_KEEP_ALIVE);
+}
+
+/* Override weak implementation in laird_power.c */
+void power_measurement_callback(u8_t integer, u8_t decimal)
+{
+	power_svc_set_voltage(integer, decimal);
 }
 
 /******************************************************************************/
@@ -916,6 +852,7 @@ static int shell_send_at_cmd(const struct shell *shell, size_t argc,
 SHELL_CMD_REGISTER(at, NULL, "Send an AT command string to the HL7800",
 		   shell_send_at_cmd);
 
+#if CONFIG_PRINT_THREAD_LIST
 static int print_thread_cmd(const struct shell *shell, size_t argc, char **argv)
 {
 	print_thread_list();
@@ -924,4 +861,6 @@ static int print_thread_cmd(const struct shell *shell, size_t argc, char **argv)
 
 SHELL_CMD_REGISTER(print_threads, NULL, "Print list of threads",
 		   print_thread_cmd);
+#endif
+
 #endif /* CONFIG_SHELL */
