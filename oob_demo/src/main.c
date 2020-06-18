@@ -69,7 +69,6 @@ static float humidityReading = 0;
 static float pressureReading = 0;
 static bool initShadow = true;
 static bool resolveAwsServer = true;
-static bool lteNeverConnected = true;
 
 static bool bUpdatedTemperature = false;
 static bool bUpdatedHumidity = false;
@@ -311,7 +310,6 @@ static void lteEvent(enum lte_event event)
 {
 	switch (event) {
 	case LTE_EVT_READY:
-		lteNeverConnected = false;
 		k_sem_give(&lte_ready_sem);
 		break;
 	case LTE_EVT_DISCONNECTED:
@@ -560,6 +558,11 @@ static void appStateAwsConnect(void)
 		return;
 	}
 
+	if (!lteIsReady()) {
+		appSetNextState(appStateWaitForLte);
+		return;
+	}
+
 	setAwsStatusWrapper(oob_ble_get_central_connection(),
 			    AWS_STATUS_CONNECTING);
 
@@ -586,9 +589,11 @@ static bool areCertsSet(void)
 
 static void appStateAwsDisconnect(void)
 {
+	awsDisconnect();
+
 	setAwsStatusWrapper(oob_ble_get_central_connection(),
 			    AWS_STATUS_DISCONNECTED);
-	awsDisconnect();
+
 	gatewaySubscribed = false;
 	FRAMEWORK_MSG_CREATE_AND_BROADCAST(FWK_ID_RESERVED,
 					   FMC_AWS_DISCONNECTED);
@@ -612,7 +617,7 @@ static void appStateWaitForLte(void)
 	setAwsStatusWrapper(oob_ble_get_central_connection(),
 			    AWS_STATUS_DISCONNECTED);
 
-	if (lteNeverConnected && !lteIsReady()) {
+	if (!lteIsReady()) {
 		/* Wait for LTE ready evt */
 		k_sem_take(&lte_ready_sem, K_FOREVER);
 	}
