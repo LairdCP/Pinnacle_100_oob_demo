@@ -23,8 +23,6 @@ LOG_MODULE_REGISTER(sensor_task);
 
 #include "FrameworkIncludes.h"
 #include "Bracket.h"
-#include "oob_common.h"
-#include "oob_ble.h"
 #include "laird_bluetooth.h"
 #include "bt_scan.h"
 #include "vsp_definitions.h"
@@ -58,6 +56,9 @@ LOG_MODULE_REGISTER(sensor_task);
 #define AWS_FIFO_PURGE_THRESHOLD_TICKS K_SECONDS(60)
 #endif
 
+/** At 1 second there are duplicate requests for shadow information. */
+#define SENSOR_TICK_RATE_SECONDS 3
+
 #define ENCRYPTION_TIMEOUT_TICKS K_SECONDS(2)
 #define CONNECTION_TIMEOUT_TICKS K_SECONDS(CONFIG_BT_CREATE_CONN_TIMEOUT + 2)
 
@@ -83,6 +84,7 @@ typedef struct SensorTask {
 	bool awsReady;
 	struct k_timer fifoTimer;
 	struct k_timer resetTimer;
+	struct k_timer sensorTick;
 	u32_t fifoTicks;
 	int scanUserId;
 } SensorTaskObj_t;
@@ -105,11 +107,8 @@ static void SensorTaskThread(void *pArg1, void *pArg2, void *pArg3);
 static DispatchResult_t AdvertisementMsgHandler(FwkMsgReceiver_t *pMsgRxer,
 						FwkMsg_t *pMsg);
 
-static DispatchResult_t ShadowRequestMsgHandler(FwkMsgReceiver_t *pMsgRxer,
-						FwkMsg_t *pMsg);
-
-static DispatchResult_t ShadowAckMsgHandler(FwkMsgReceiver_t *pMsgRxer,
-					    FwkMsg_t *pMsg);
+static DispatchResult_t SensorTickHandler(FwkMsgReceiver_t *pMsgRxer,
+					  FwkMsg_t *pMsg);
 
 static DispatchResult_t WhitelistRequestMsgHandler(FwkMsgReceiver_t *pMsgRxer,
 						   FwkMsg_t *pMsg);
@@ -185,8 +184,10 @@ static u8_t NotificationCallback(struct bt_conn *conn,
 static void MtuCallback(struct bt_conn *conn, u8_t err,
 			struct bt_gatt_exchange_params *params);
 
-static void SendSensorResetTimerCallback(struct k_timer *timer_id);
+static void SendSensorResetTimerCallbackIsr(struct k_timer *timer_id);
 static void AwsFifoMonitorTimerCallbackIsr(struct k_timer *timer_id);
+static void SensorTickCallbackIsr(struct k_timer *timer_id);
+static void StartSensorTick(SensorTaskObj_t *pObj);
 
 #if CONFIG_SCAN_FOR_BT510
 static void SensorTaskAdvHandler(const bt_addr_le_t *addr, s8_t rssi, u8_t type,
@@ -202,8 +203,7 @@ static FwkMsgHandler_t SensorTaskMsgDispatcher(FwkMsgCode_t MsgCode)
 	switch (MsgCode) {
 	case FMC_INVALID:                  return Framework_UnknownMsgHandler;
 	case FMC_ADV:                      return AdvertisementMsgHandler;
-	case FMC_SHADOW_REQUEST:           return ShadowRequestMsgHandler;
-	case FMC_SHADOW_ACK:               return ShadowAckMsgHandler;
+	case FMC_SENSOR_TICK:              return SensorTickHandler;
 	case FMC_WHITELIST_REQUEST:        return WhitelistRequestMsgHandler;
 	case FMC_CONFIG_REQUEST:           return ConfigRequestMsgHandler;
 	case FMC_CONNECT_REQUEST:          return ConnectRequestMsgHandler;
@@ -271,8 +271,11 @@ static void SensorTaskThread(void *pArg1, void *pArg2, void *pArg3)
 	k_timer_start(&pObj->fifoTimer, AWS_FIFO_CHECK_RATE_TICKS,
 		      AWS_FIFO_CHECK_RATE_TICKS);
 
-	k_timer_init(&pObj->resetTimer, SendSensorResetTimerCallback, NULL);
+	k_timer_init(&pObj->resetTimer, SendSensorResetTimerCallbackIsr, NULL);
 	k_timer_user_data_set(&pObj->resetTimer, pObj);
+
+	k_timer_init(&pObj->sensorTick, SensorTickCallbackIsr, NULL);
+	k_timer_user_data_set(&pObj->sensorTick, pObj);
 
 #if CONFIG_SCAN_FOR_BT510
 	bt_scan_register(&pObj->scanUserId, SensorTaskAdvHandler);
@@ -282,7 +285,7 @@ static void SensorTaskThread(void *pArg1, void *pArg2, void *pArg3)
 	while (true) {
 		Framework_MsgReceiver(&pObj->msgTask.rxer);
 		u32_t numUsed = k_msgq_num_used_get(pObj->msgTask.rxer.pQueue);
-		if (numUsed > (SENSOR_TASK_QUEUE_DEPTH / 2)) {
+		if (numUsed > SENSOR_TASK_QUEUE_DEPTH / 2) {
 			LOG_WRN("Sensor Task filled to %u of %u", numUsed,
 				SENSOR_TASK_QUEUE_DEPTH);
 		}
@@ -307,26 +310,18 @@ static DispatchResult_t WhitelistRequestMsgHandler(FwkMsgReceiver_t *pMsgRxer,
 	return DISPATCH_OK;
 }
 
-static DispatchResult_t ShadowRequestMsgHandler(FwkMsgReceiver_t *pMsgRxer,
-						FwkMsg_t *pMsg)
+static DispatchResult_t SensorTickHandler(FwkMsgReceiver_t *pMsgRxer,
+					  FwkMsg_t *pMsg)
 {
 	UNUSED_PARAMETER(pMsg);
 	SensorTaskObj_t *pObj = FWK_TASK_CONTAINER(SensorTaskObj_t);
 	if (pObj->awsReady) {
-		SensorTable_GenerateGatewayShadow();
+		SensorTable_TimeToLiveHandler();
 		SensorTable_SubscriptionHandler(); /* sensor shadow  delta */
 		SensorTable_GetAcceptedSubscriptionHandler();
 		SensorTable_InitShadowHandler();
+		StartSensorTick(pObj);
 	}
-	return DISPATCH_OK;
-}
-
-static DispatchResult_t ShadowAckMsgHandler(FwkMsgReceiver_t *pMsgRxer,
-					    FwkMsg_t *pMsg)
-{
-	UNUSED_PARAMETER(pMsgRxer);
-	UNUSED_PARAMETER(pMsg);
-	SensorTable_GatewayShadowAck();
 	return DISPATCH_OK;
 }
 
@@ -442,11 +437,18 @@ static DispatchResult_t AwsConnectionMsgHandler(FwkMsgReceiver_t *pMsgRxer,
 	SensorTaskObj_t *pObj = FWK_TASK_CONTAINER(SensorTaskObj_t);
 	if (pMsg->header.msgCode == FMC_AWS_CONNECTED) {
 		pObj->awsReady = true;
+		StartSensorTick(pObj);
 	} else {
 		pObj->awsReady = false;
 		SensorTable_UnsubscribeAll();
 	}
 	return DISPATCH_OK;
+}
+
+static void StartSensorTick(SensorTaskObj_t *pObj)
+{
+	k_timer_start(&pObj->sensorTick, K_SECONDS(SENSOR_TICK_RATE_SECONDS),
+		      0);
 }
 
 static DispatchResult_t SubscriptionAckMsgHandler(FwkMsgReceiver_t *pMsgRxer,
@@ -874,7 +876,7 @@ static void MtuCallback(struct bt_conn *conn, u8_t err,
 /******************************************************************************/
 /* Interrupt Service Routines                                                 */
 /******************************************************************************/
-static void SendSensorResetTimerCallback(struct k_timer *timer_id)
+static void SendSensorResetTimerCallbackIsr(struct k_timer *timer_id)
 {
 	UNUSED_PARAMETER(timer_id);
 	FRAMEWORK_MSG_SEND_TO_SELF(FWK_ID_SENSOR_TASK, FMC_SEND_RESET);
@@ -903,6 +905,12 @@ static void AwsFifoMonitorTimerCallbackIsr(struct k_timer *timer_id)
 			LOG_WRN("Flushed %u cloud messages", flushed);
 		}
 	}
+}
+
+static void SensorTickCallbackIsr(struct k_timer *timer_id)
+{
+	UNUSED_PARAMETER(timer_id);
+	FRAMEWORK_MSG_SEND_TO_SELF(FWK_ID_SENSOR_TASK, FMC_SENSOR_TICK);
 }
 
 /******************************************************************************/

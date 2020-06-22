@@ -28,7 +28,6 @@ LOG_MODULE_REGISTER(oob_aws_svc);
 #include "nv.h"
 #include "aws.h"
 #include "laird_bluetooth.h"
-#include "oob_common.h"
 
 /******************************************************************************/
 /* Local Constant, Macro and Type Definitions                                 */
@@ -66,6 +65,8 @@ static struct bt_uuid_128 aws_save_clear_uuid =
 static struct bt_uuid_128 aws_status_uuid =
 	BT_UUID_INIT_128(0xb5, 0xa9, 0x34, 0xf2, 0x59, 0x7c, 0xd7, 0xbc, 0x14,
 			 0x4a, 0xa9, 0x55, 0xf7, 0x03, 0x72, 0xae);
+
+#define SHA256_SIZE 32
 
 /******************************************************************************/
 /* Local Data Definitions                                                     */

@@ -1,18 +1,19 @@
 /**
- * @file dns.h
+ * @file ble_sensor_service.h
  * @brief
  *
  * Copyright (c) 2020 Laird Connectivity
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-#ifndef __DNS_H__
-#define __DNS_H__
+#ifndef __BLE_SENSOR_SERVICE_H__
+#define __BLE_SENSOR_SERVICE_H__
 
 /******************************************************************************/
 /* Includes                                                                   */
 /******************************************************************************/
-#include <net/socket.h>
+#include <bluetooth/conn.h>
+#include <zephyr/types.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -21,14 +22,23 @@ extern "C" {
 /******************************************************************************/
 /* Global Function Prototypes                                                 */
 /******************************************************************************/
+/* For multi-peripheral device the weak implementation can be overriden. */
+struct bt_conn *bss_get_conn(void);
+
+void bss_set_sensor_state(u8_t state);
+
 /**
- * @brief Wraps getaddrinfo with DNS_RETRIES counter and print statements.
+ * @param addr If NULL then sensor bt addr string is cleared.
  */
-int dns_resolve_server_addr(char *endpoint, char *port, struct addrinfo *hints,
-			    struct addrinfo **result);
+void bss_set_sensor_bt_addr(char *addr);
+
+/**
+ * @brief Initialize the sensor service
+ */
+void bss_init();
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* __DNS_H__ */
+#endif /* __BLE_SENSOR_SERVICE_H__ */

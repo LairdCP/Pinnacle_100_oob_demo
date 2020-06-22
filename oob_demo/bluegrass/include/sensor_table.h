@@ -56,14 +56,13 @@ typedef struct SubscribeMsg {
 	bool success; /* used for ack only */
 	size_t tableIndex;
 	size_t length;
-	char topic[CONFIG_TOPIC_MAX_SIZE];
+	char topic[CONFIG_AWS_TOPIC_MAX_SIZE];
 } SubscribeMsg_t;
 
 typedef struct SensorCmdMsg {
 	FwkMsgHeader_t header;
 	u32_t attempts;
 	bt_addr_le_t addr;
-	s64_t dispatchTime;
 	bool dumpRequest;
 	bool resetRequest;
 	bool setEpochRequest;
@@ -150,16 +149,21 @@ void SensorTable_CreateShadowFromDumpResponse(FwkBufMsg_t *pRsp,
 					      const char *pAddrStr);
 
 /**
- * @brief Generate sensor portion of the shadow if
- * the sensor table has changed.
+ * @brief Helper function
  */
-void SensorTable_GenerateGatewayShadow(void);
+void SensorTable_EnableGatewayShadowGeneration(void);
 
 /**
- * @brief Inform the sensor task that its last gateway shadow
- * generation has reached AWS.
+ * @brief Helper function
  */
-void SensorTable_GatewayShadowAck(void);
+void SensorTable_DisableGatewayShadowGeneration(void);
+
+/**
+ * @brief If a sensor hasn't been seen (its ttl count is zero),
+ * then remove it from the table.  Don't remove sensor
+ * if it has been whitelisted by AWS.
+ */
+void SensorTable_TimeToLiveHandler(void);
 
 /**
  * @brief When disconnected from AWS all sensors must have their state set

@@ -27,7 +27,7 @@ typedef struct JsonMsg {
 	FwkMsgHeader_t header;
 	size_t size; /** number of bytes */
 	size_t length; /** of the data */
-	char topic[CONFIG_TOPIC_MAX_SIZE];
+	char topic[CONFIG_AWS_TOPIC_MAX_SIZE];
 	char buffer[];
 } JsonMsg_t;
 

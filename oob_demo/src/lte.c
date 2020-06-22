@@ -29,8 +29,7 @@ LOG_MODULE_REGISTER(oob_lte);
 #include <drivers/modem/modem_receiver.h>
 #include <drivers/modem/hl7800.h>
 #include "ble_cellular_service.h"
-#include "led.h"
-#include "oob_common.h"
+#include "led_configuration.h"
 #include "qrtc.h"
 
 #include "lte.h"
@@ -45,8 +44,8 @@ struct mgmt_events {
 };
 
 static const struct led_blink_pattern NETWORK_SEARCH_LED_PATTERN = {
-	.on_time = DEFAULT_LED_ON_TIME_FOR_1_SECOND_BLINK,
-	.off_time = DEFAULT_LED_OFF_TIME_FOR_1_SECOND_BLINK,
+	.on_time = CONFIG_DEFAULT_LED_ON_TIME_FOR_1_SECOND_BLINK,
+	.off_time = CONFIG_DEFAULT_LED_OFF_TIME_FOR_1_SECOND_BLINK,
 	.repeat_count = REPEAT_INDEFINITELY
 };
 

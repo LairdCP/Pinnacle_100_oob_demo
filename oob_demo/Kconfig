@@ -12,30 +12,16 @@ config LAIRD_CONNECTIVITY_DEBUG
     bool
     default n
 
-config SCAN_FOR_BL654_SENSOR
+menu "BL654 Sensor"
+	 default y
+
+config BL654_SENSOR
     bool "Parse Bluetooth advertisements for BL654 Sensor"
     default y
 
-config SCAN_FOR_BT510
-    bool "Parse Bluetooth advertisements for BT510 Sensor"
-    default y
-
-config JSON_BRACKET_BUFFER_SIZE
-    int "The maximum size JSON message that can be processed"
-    default 1536
-    help
-        This applies to sensor messages received over Bluetooth.
-
-config AWS_QUEUE_TIMEOUT_SECONDS
-    int "The amount of time to wait for data to send to AWS"
-    default 30
-    range 1 60
-    help
-        This can't be more than the AWS connection timeout.
-
 config BL654_SENSOR_SEND_TO_AWS_RATE_SECONDS
     int "The period at which to send BL654 Sensor data to AWS"
-    default 30
+    default 60
     range 30 3600
 
 config BL654_SENSOR_NAME
@@ -44,6 +30,43 @@ config BL654_SENSOR_NAME
     help
         Any sensor with the ESS service should work
         (temperature, humidity, and pressure).
+
+endmenu
+
+config AWS_DATA_SEND_LED_OFF_DURATION_MILLISECONDS
+    int "The amount of time to turn off the green LED when data is sent"
+    default 30
+    range 1 1000
+    help
+        Green LED is turned on when connected to AWS.
+        Green LED is flashed off when data is sent.
+        Implemented using sleep.
+        Subscription processing doesn't blink green LED.
+
+config AWS_KEEP_ALIVE_SECONDS
+    int "The modem's RSSI is sent at this rate to keep AWS connection alive"
+    default 30
+    range 1 80
+    help
+        This can't be more than the AWS connection timeout.
+
+config AWS_TOPIC_MAX_SIZE
+    int "Maximum size for AWS topic strings"
+    default 64
+
+config BLUEGRASS
+    bool "Send data to Laird Connectivity's Bluegrass (AWS)"
+    default y
+    help
+        When disabled modem and BL654 Sensor data will still be sent
+        to the shadow.
+
+menu "Laird Connectivity Bluegrass Demo Options"
+     depends on BLUEGRASS
+
+config SCAN_FOR_BT510
+    bool "Parse Bluetooth advertisements for BT510 Sensor"
+    default y
 
 config USE_SINGLE_AWS_TOPIC
     bool "Send all sensor data to gateway topic"
@@ -54,15 +77,17 @@ config USE_SINGLE_AWS_TOPIC
         gateway's topic vs. the individual sensor topic.
         BL654 sensor data is always sent to the gateway topic.
 
+config JSON_BRACKET_BUFFER_SIZE
+    int "The maximum size JSON message that can be processed"
+    default 1536
+    help
+        This applies to sensor messages received over Bluetooth.
+
 config SENSOR_TOPIC_FMT_STR_PREFIX
 	string "Default location for sensor data"
 	default "$aws/things/%s/shadow"
     help
         "%s will be replaced by the sensor BT address"
-
-config TOPIC_MAX_SIZE
-    int "Maximum size for AWS topic strings"
-    default 64
 
 config SHADOW_IN_MAX_SIZE
     int "Maximum size of subscription/shadow that can be processed"
@@ -72,8 +97,9 @@ config SHADOW_IN_MAX_SIZE
 
 config SENSOR_TABLE_SIZE
     int "Number of sensors that can be monitored"
-    default 15
-    range 1 15
+    default 0 if LWM2M
+    default 15 if BLUEGRASS
+    range 0 15
 
 config SENSOR_LOG_MAX_SIZE
     int "The maximum number of stored sensor events"
@@ -82,6 +108,14 @@ config SENSOR_LOG_MAX_SIZE
     help
         Limited by the memory pool
         Limited by MQTT or modem.
+
+config SENSOR_SUBSCRIPTION_DELAY_SECONDS
+    int "The number of seconds to wait after a sensor is whitelisted before subscribing to the delta and get topics."
+    default 10
+    range 6 60
+    help
+        The server needs time to generate the sensor object.
+        When the permissions are changed on AWS a disconnect may occur.
 
 config VSP_TX_ECHO
     bool "Print Virtual Serial Port data transmitted to sensors"
@@ -93,8 +127,7 @@ config VSP_RX_ECHO
     help
         This occurs in task context because strings can be long
 
-config JSON_LOG_ENABLED
-    bool "Print JSON messages in task context using printk"
+endmenu # Bluegrass options
 
 config JSON_LOG_PUBLISH
     bool "Print data published to AWS"
@@ -105,18 +138,10 @@ config JSON_LOG_TOPIC
 config JSON_LOG_MQTT_RX_DATA
     bool "Enable/Disable printing of received MQTT data."
 
-config DNS_RETRIES
-    int "Number of times to retry resolving server address"
-    default 1
-
-config DNS_RETRY_DELAY_SECONDS
-    int "Number of seconds to wait between resolution attempts"
-    default 5
-
 menu "Laird Connectivity LWM2M Demo Options"
      depends on LWM2M
 
-config L2M2M_ENABLE_PSK_GENERATION
+config LWM2M_ENABLE_PSK_GENERATION
     bool "Allow new PSK to be generated over Bluetooth"
     default y
 
@@ -138,15 +163,7 @@ config LWM2M_CLIENT_ENDPOINT_MAX_SIZE
     int "Maximum size of the client endpoint name"
     default 64
 
-endmenu
-
-config BT_SCAN_MAX_USERS
-	int "Maximum number of users of the scan module"
-	range 1 32
-	default 2
-
-config BT_SCAN_VERBOSE_ADV_HANDLER
-	bool "Enable Verbose logging of advertisements"
+endmenu # LWM2M options
 
 endif # USER_APPLICATION
 
