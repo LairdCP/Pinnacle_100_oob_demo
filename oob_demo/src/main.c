@@ -500,6 +500,11 @@ static void appStateAwsDisconnect(void)
 
 	FRAMEWORK_MSG_CREATE_AND_BROADCAST(FWK_ID_RESERVED,
 					   FMC_AWS_DISCONNECTED);
+
+#if CONFIG_BLUEGRASS
+	Bluegrass_DisconnectedCallback();
+#endif
+
 	appSetNextState(appStateAwsConnect);
 }
 
