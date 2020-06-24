@@ -166,6 +166,12 @@ void SensorTable_DisableGatewayShadowGeneration(void);
 void SensorTable_TimeToLiveHandler(void);
 
 /**
+ * @brief When decommissioned from AWS all sensors must be disabled
+ * because the shadow is deleted on AWS.
+ */
+void SensorTable_DecomissionHandler(void);
+
+/**
  * @brief When disconnected from AWS all sensors must have their state set
  * to unsubscribed.
  */

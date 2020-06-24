@@ -152,6 +152,7 @@ int awsGetShadow(void);
 int awsGetAcceptedSubscribe(void);
 int awsGetAcceptedUnsub(void);
 void awsGenerateGatewayTopics(const char *imei);
+void awsDisconnectCallback(void);
 
 #ifdef __cplusplus
 }

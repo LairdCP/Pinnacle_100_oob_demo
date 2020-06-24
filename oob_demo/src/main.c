@@ -367,7 +367,11 @@ static void appStateStartup(void)
 #endif
 }
 
-/* This function will throw away sensor data if it can't send it. */
+/* This function will throw away sensor data if it can't send it.
+ * Subscription failures can occur even when the return value was success.
+ * An AWS disconnect callback is used to send a message to unblock this queue.
+ * This allows the UI (green LED) to be updated immediately.
+ */
 static void awsMsgHandler(void)
 {
 	int rc = 0;
@@ -377,7 +381,9 @@ static void awsMsgHandler(void)
 	while (rc == 0) {
 		led_turn_on(GREEN_LED2);
 		/* Remove sensor/gateway data from queue and send it to cloud.
-		Block if there are not any messages. */
+		 * Block if there are not any messages.
+		 * The keep alive message (RSSI) occurs every ~30 seconds.
+		 */
 		rc = -EINVAL;
 		pMsg = NULL;
 		Framework_Receive(awsMsgReceiver.pQueue, &pMsg, K_FOREVER);
@@ -387,8 +393,9 @@ static void awsMsgHandler(void)
 		freeMsg = true;
 
 		/* BL654 data is sent to the gateway topic.  If Bluegrass is enabled,
-		then sensor data (BT510) is sent to individual topics.  It also allows
-		AWS to configure sensors. */
+		 * then sensor data (BT510) is sent to individual topics.  It also allows
+		 * AWS to configure sensors.
+		 */
 		switch (pMsg->header.msgCode) {
 		case FMC_BL654_SENSOR_EVENT: {
 			BL654SensorMsg_t *pBmeMsg = (BL654SensorMsg_t *)pMsg;
@@ -405,6 +412,11 @@ static void awsMsgHandler(void)
 			StartKeepAliveTimer();
 		} break;
 
+		case FMC_AWS_DECOMMISSION:
+		case FMC_AWS_DISCONNECTED:
+			/* Message is used to unblock queue. */
+			break;
+
 		default:
 #if CONFIG_BLUEGRASS
 			rc = Bluegrass_MsgHandler(pMsg, &freeMsg);
@@ -416,11 +428,15 @@ static void awsMsgHandler(void)
 			BufferPool_Free(pMsg);
 		}
 
-		/* Any error will most likely result in a disconnect. */
+		/* A publish error will most likely result in an immediate disconnect.
+		 * A disconnect due to a subscription error may be delayed.
+		 *
+		 * When the permissions change on a sensor topic
+		 * (sensor enabled in Bluegrass) the first subscription will result in
+		 * a disconnect. The second attempt will work.
+		 */
 		led_turn_off(GREEN_LED2);
-		if (rc != 0) {
-			MAIN_LOG_ERR("AWS queue processing error (%d)", rc);
-		} else {
+		if (rc == 0) {
 			k_sleep(K_MSEC(
 				CONFIG_AWS_DATA_SEND_LED_OFF_DURATION_MILLISECONDS));
 		}
@@ -457,6 +473,12 @@ static void appStateAwsInitShadow(void)
 		Bluegrass_ConnectedCallback();
 #endif
 	}
+}
+
+void awsDisconnectCallback(void)
+{
+	FRAMEWORK_MSG_CREATE_AND_SEND(FWK_ID_RESERVED, FWK_ID_AWS,
+				      FMC_AWS_DISCONNECTED);
 }
 
 static void appStateAwsConnect(void)
@@ -630,7 +652,17 @@ static void decommission(void)
 	devKeySet = false;
 	commissioned = false;
 	allowCommissioning = true;
+	initShadow = true;
 	appSetNextState(appStateAwsDisconnect);
+#if CONFIG_BLUEGRASS
+	/* If the device is deleted from AWS it must be decommissioned
+	 * in the BLE app before it is reprovisioned.
+	 */
+	FRAMEWORK_MSG_CREATE_AND_SEND(FWK_ID_RESERVED, FWK_ID_SENSOR_TASK,
+				      FMC_AWS_DECOMMISSION);
+#endif
+	FRAMEWORK_MSG_CREATE_AND_SEND(FWK_ID_RESERVED, FWK_ID_AWS,
+				      FMC_AWS_DECOMMISSION);
 	printk("Device is decommissioned\n");
 }
 

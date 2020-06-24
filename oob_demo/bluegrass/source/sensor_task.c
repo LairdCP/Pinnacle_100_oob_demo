@@ -140,6 +140,9 @@ static DispatchResult_t SendResetHandler(FwkMsgReceiver_t *pMsgRxer,
 static DispatchResult_t AwsConnectionMsgHandler(FwkMsgReceiver_t *pMsgRxer,
 						FwkMsg_t *pMsg);
 
+static DispatchResult_t AwsDecommissionMsgHandler(FwkMsgReceiver_t *pMsgRxer,
+						  FwkMsg_t *pMsg);
+
 static DispatchResult_t SubscriptionAckMsgHandler(FwkMsgReceiver_t *pMsgRxer,
 						  FwkMsg_t *pMsg);
 
@@ -218,6 +221,7 @@ static FwkMsgHandler_t SensorTaskMsgDispatcher(FwkMsgCode_t MsgCode)
 	case FMC_AWS_DISCONNECTED:         return AwsConnectionMsgHandler;
 	case FMC_SUBSCRIBE_ACK:            return SubscriptionAckMsgHandler;
 	case FMC_SENSOR_SHADOW_INIT:       return SensorShadowInitMsgHandler;
+	case FMC_AWS_DECOMMISSION:         return AwsDecommissionMsgHandler;
 	default:                           return NULL;
 	}
 	/* clang-format on */
@@ -440,8 +444,18 @@ static DispatchResult_t AwsConnectionMsgHandler(FwkMsgReceiver_t *pMsgRxer,
 		StartSensorTick(pObj);
 	} else {
 		pObj->awsReady = false;
+		SensorTable_DisableGatewayShadowGeneration();
 		SensorTable_UnsubscribeAll();
 	}
+	return DISPATCH_OK;
+}
+
+static DispatchResult_t AwsDecommissionMsgHandler(FwkMsgReceiver_t *pMsgRxer,
+						  FwkMsg_t *pMsg)
+{
+	UNUSED_PARAMETER(pMsgRxer);
+	UNUSED_PARAMETER(pMsg);
+	SensorTable_DecomissionHandler();
 	return DISPATCH_OK;
 }
 

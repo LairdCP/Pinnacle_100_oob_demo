@@ -106,7 +106,6 @@ void Bluegrass_ConnectedCallback(void)
 void Bluegrass_DisconnectedCallback(void)
 {
 	gatewaySubscribed = false;
-	SensorTable_DisableGatewayShadowGeneration();
 	FRAMEWORK_MSG_CREATE_AND_BROADCAST(FWK_ID_RESERVED,
 					   FMC_AWS_DISCONNECTED);
 }

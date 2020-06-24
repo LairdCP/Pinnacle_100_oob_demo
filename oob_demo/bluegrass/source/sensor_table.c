@@ -376,6 +376,16 @@ void SensorTable_DisableGatewayShadowGeneration(void)
 	allowGatewayShadowGeneration = false;
 }
 
+void SensorTable_DecomissionHandler(void)
+{
+	size_t i;
+	for (i = 0; i < CONFIG_SENSOR_TABLE_SIZE; i++) {
+		Whitelist(&sensorTable[i], false);
+		sensorTable[i].shadowInitReceived = false;
+		sensorTable[i].firstDumpComplete = false;
+	}
+}
+
 void SensorTable_UnsubscribeAll(void)
 {
 	size_t i;

@@ -488,7 +488,7 @@ static void mqtt_evt_handler(struct mqtt_client *const client,
 
 		connected = false;
 		clear_fds();
-
+		awsDisconnectCallback();
 		break;
 
 	case MQTT_EVT_PUBACK:
@@ -693,4 +693,12 @@ static void awsRxThread(void *arg1, void *arg2, void *arg3)
 			k_sem_take(&connected_sem, K_FOREVER);
 		}
 	}
+}
+
+/******************************************************************************/
+/* Override in application                                                    */
+/******************************************************************************/
+__weak void awsDisconnectCallback(void)
+{
+	return;
 }
