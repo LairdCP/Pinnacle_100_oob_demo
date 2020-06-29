@@ -11,7 +11,6 @@
 /* Includes                                                                   */
 /******************************************************************************/
 #include <string.h>
-#include <misc/util.h>
 
 #include "sensor_cmd.h"
 

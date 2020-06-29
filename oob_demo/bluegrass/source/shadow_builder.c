@@ -23,7 +23,7 @@ LOG_MODULE_REGISTER(shadow_builder);
 /******************************************************************************/
 /* Local Constant, Macro and Type Definitions                                 */
 /******************************************************************************/
-#define JSON_APPEND_CHAR(c) JsonAppendChar(pJsonMsg, (u8_t)(c))
+#define JSON_APPEND_CHAR(c) JsonAppendChar(pJsonMsg, (uint8_t)(c))
 #define JSON_APPEND_STRING(s) JsonAppendString(pJsonMsg, (s), true)
 
 #define JSON_APPEND_VALUE_STRING(s)                                            \
@@ -94,7 +94,7 @@ void ShadowBuilder_Finalize(JsonMsg_t *pJsonMsg)
 }
 
 void ShadowBuilder_AddUint32(JsonMsg_t *pJsonMsg, const char *restrict pKey,
-			     u32_t Value)
+			     uint32_t Value)
 {
 	FRAMEWORK_ASSERT(pJsonMsg != NULL);
 	FRAMEWORK_ASSERT(pKey != NULL);
@@ -108,7 +108,7 @@ void ShadowBuilder_AddUint32(JsonMsg_t *pJsonMsg, const char *restrict pKey,
 }
 
 void ShadowBuilder_AddSigned32(JsonMsg_t *pJsonMsg, const char *restrict pKey,
-			       s32_t Value)
+			       int32_t Value)
 {
 	FRAMEWORK_ASSERT(pJsonMsg != NULL);
 	FRAMEWORK_ASSERT(pKey != NULL);
@@ -116,12 +116,12 @@ void ShadowBuilder_AddSigned32(JsonMsg_t *pJsonMsg, const char *restrict pKey,
 
 	JSON_APPEND_KEY(pKey);
 	memset(str, 0, MAXIMUM_LENGTH_OF_TO_STRING_OUTPUT);
-	s32_t v = Value;
+	int32_t v = Value;
 	if (Value < 0) {
 		JSON_APPEND_CHAR('-');
 		v *= -1;
 	}
-	ToString_Dec(str, (u32_t)v);
+	ToString_Dec(str, (uint32_t)v);
 	JSON_APPEND_STRING(str);
 	JSON_APPEND_CHAR(',');
 }
@@ -139,7 +139,7 @@ void ShadowBuilder_AddPair(JsonMsg_t *pJsonMsg, const char *restrict pKey,
 
 	JSON_APPEND_KEY(pKey);
 	if (IsNotString) {
-		JSON_APPEND_STRING(pValue); /* us32_t, s32_t, float, ... */
+		JSON_APPEND_STRING(pValue); /* us32_t, int32_t, float, ... */
 	} else {
 		JSON_APPEND_VALUE_STRING(pValue);
 	}
@@ -147,7 +147,7 @@ void ShadowBuilder_AddPair(JsonMsg_t *pJsonMsg, const char *restrict pKey,
 }
 
 void ShadowBuilder_AddVersion(JsonMsg_t *pJsonMsg, const char *restrict pKey,
-			      u8_t Major, u8_t Minor, u8_t Build)
+			      uint8_t Major, uint8_t Minor, uint8_t Build)
 {
 	FRAMEWORK_ASSERT(pJsonMsg != NULL);
 	FRAMEWORK_ASSERT(pKey != NULL);
@@ -237,7 +237,7 @@ void ShadowBuilder_EndArray(JsonMsg_t *pJsonMsg)
 
 void ShadowBuilder_AddSensorTableArrayEntry(JsonMsg_t *pJsonMsg,
 					    const char *restrict pAddrStr,
-					    u32_t Epoch, bool Whitelisted)
+					    uint32_t Epoch, bool Whitelisted)
 {
 	FRAMEWORK_ASSERT(pJsonMsg != NULL);
 	FRAMEWORK_ASSERT(pAddrStr != NULL);

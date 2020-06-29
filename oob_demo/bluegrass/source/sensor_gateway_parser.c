@@ -77,9 +77,9 @@ static int FindType(const char *pJson, const char *s, jsmntype_t Type,
 static void ParseArray(const char *pJson, int ExpectedSensors);
 
 static jsmntok_t *FindState(const char *pJson);
-static bool FindConfigVersion(const char *pJson, u32_t *pVersion);
-static u32_t ConvertInt(const char *pJson, int Index);
-static u32_t ConvertHex(const char *pJson, int Index);
+static bool FindConfigVersion(const char *pJson, uint32_t *pVersion);
+static uint32_t ConvertInt(const char *pJson, int Index);
+static uint32_t ConvertHex(const char *pJson, int Index);
 
 /******************************************************************************/
 /* Global Function Definitions                                                */
@@ -179,7 +179,7 @@ static void SensorParser(const char *pTopic, const char *pJson)
 
 static void SensorDeltaParser(const char *pTopic, const char *pJson)
 {
-	u32_t version = 0;
+	uint32_t version = 0;
 	jsmntok_t *pState = FindState(pJson);
 	if (!FindConfigVersion(pJson, &version) || pState == NULL) {
 		return;
@@ -402,7 +402,7 @@ static jsmntok_t *FindState(const char *pJson)
  * @retval true if version found, otherwise false
  * @note sets jsonIndex to 1
  */
-static bool FindConfigVersion(const char *pJson, u32_t *pVersion)
+static bool FindConfigVersion(const char *pJson, uint32_t *pVersion)
 {
 	jsonIndex = 1;
 	int versionLocation =
@@ -416,7 +416,7 @@ static bool FindConfigVersion(const char *pJson, u32_t *pVersion)
 	return false;
 }
 
-static u32_t ConvertInt(const char *pJson, int Index)
+static uint32_t ConvertInt(const char *pJson, int Index)
 {
 	char str[MAX_CONVERSION_STR_SIZE];
 	int length = tokens[Index].end - tokens[Index].start;
@@ -425,7 +425,7 @@ static u32_t ConvertInt(const char *pJson, int Index)
 	return strtoul(str, NULL, 10);
 }
 
-static u32_t ConvertHex(const char *pJson, int Index)
+static uint32_t ConvertHex(const char *pJson, int Index)
 {
 	char str[MAX_CONVERSION_STR_SIZE];
 	int length = tokens[Index].end - tokens[Index].start;

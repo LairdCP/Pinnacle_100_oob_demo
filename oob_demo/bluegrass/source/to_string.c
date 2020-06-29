@@ -31,7 +31,7 @@ static const char DIGITS[] = "0001020304050607080910111213141516171819"
 /******************************************************************************/
 /* Local Functions                                                            */
 /******************************************************************************/
-static inline u8_t NumberOfBase10Digits(u32_t Value)
+static inline uint8_t NumberOfBase10Digits(uint32_t Value)
 {
 	if (Value < 10)
 		return 1;
@@ -57,16 +57,16 @@ static inline u8_t NumberOfBase10Digits(u32_t Value)
 /******************************************************************************/
 /* Global Function Definitions                                                */
 /******************************************************************************/
-u8_t ToString_Dec(char *pString, u32_t Value)
+uint8_t ToString_Dec(char *pString, uint32_t Value)
 {
-	u32_t remainder = Value;
-	u8_t const length = NumberOfBase10Digits(Value);
-	u8_t index = length - 1;
+	uint32_t remainder = Value;
+	uint8_t const length = NumberOfBase10Digits(Value);
+	uint8_t index = length - 1;
 
 	pString[length] = NUL;
 
 	while (remainder >= 100) {
-		u8_t d = (remainder % 100) * 2;
+		uint8_t d = (remainder % 100) * 2;
 		remainder /= 100;
 		pString[index] = DIGITS[d + 1];
 		pString[index - 1] = DIGITS[d];
@@ -76,7 +76,7 @@ u8_t ToString_Dec(char *pString, u32_t Value)
 	if (remainder < 10) {
 		pString[index] = '0' + remainder;
 	} else {
-		u8_t d = remainder * 2;
+		uint8_t d = remainder * 2;
 		pString[index] = DIGITS[d + 1];
 		pString[index - 1] = DIGITS[d];
 	}
@@ -84,7 +84,7 @@ u8_t ToString_Dec(char *pString, u32_t Value)
 	return length;
 }
 
-void ToString_Hex32(char *pString, u32_t Value)
+void ToString_Hex32(char *pString, uint32_t Value)
 {
 	pString[0] = TO_CHAR((Value >> 28) & 0x0F);
 	pString[1] = TO_CHAR((Value >> 24) & 0x0F);
@@ -106,7 +106,7 @@ void ToString_Hex16(char *pString, uint16_t Value)
 	pString[4] = NUL;
 }
 
-void ToString_Hex8(char *pString, u8_t Value)
+void ToString_Hex8(char *pString, uint8_t Value)
 {
 	pString[0] = TO_CHAR((Value >> 4) & 0x0F);
 	pString[1] = TO_CHAR((Value >> 0) & 0x0F);

@@ -21,8 +21,9 @@ LOG_MODULE_REGISTER(oob_nv);
 /******************************************************************************/
 #include <zephyr.h>
 #include <device.h>
-#include <flash.h>
-#include <nvs/nvs.h>
+#include <drivers/flash.h>
+#include <storage/flash_map.h>
+#include <fs/nvs.h>
 
 #include "nv.h"
 
@@ -81,9 +82,9 @@ int nvInit(void)
 
 	/* define the nvs file system by settings with:
 	 *	sector_size equal to the pagesize,
-	 *	starting at NV_FLASH_OFFSET
+	 *	starting at FLASH_AREA_OFFSET(storage)
 	 */
-	fs.offset = NV_FLASH_OFFSET;
+	fs.offset = FLASH_AREA_OFFSET(storage);
 	rc = flash_get_page_info_by_offs(device_get_binding(NV_FLASH_DEVICE),
 					 fs.offset, &info);
 	if (rc) {
@@ -116,22 +117,22 @@ exit:
 	return rc;
 }
 
-int nvStoreDevCert(u8_t *cert, u16_t size)
+int nvStoreDevCert(uint8_t *cert, uint16_t size)
 {
 	return nvs_write(&fs, SETTING_ID_DEV_CERT, cert, size);
 }
 
-int nvStoreDevKey(u8_t *key, u16_t size)
+int nvStoreDevKey(uint8_t *key, uint16_t size)
 {
 	return nvs_write(&fs, SETTING_ID_DEV_KEY, key, size);
 }
 
-int nvReadDevCert(u8_t *cert, u16_t size)
+int nvReadDevCert(uint8_t *cert, uint16_t size)
 {
 	return nvs_read(&fs, SETTING_ID_DEV_CERT, cert, size);
 }
 
-int nvReadDevKey(u8_t *key, u16_t size)
+int nvReadDevKey(uint8_t *key, uint16_t size)
 {
 	return nvs_read(&fs, SETTING_ID_DEV_KEY, key, size);
 }
@@ -146,32 +147,32 @@ int nvDeleteDevKey(void)
 	return nvs_delete(&fs, SETTING_ID_DEV_KEY);
 }
 
-int nvStoreAwsEndpoint(u8_t *ep, u16_t size)
+int nvStoreAwsEndpoint(uint8_t *ep, uint16_t size)
 {
 	return nvs_write(&fs, SETTING_ID_AWS_ENDPOINT, ep, size);
 }
 
-int nvReadAwsEndpoint(u8_t *ep, u16_t size)
+int nvReadAwsEndpoint(uint8_t *ep, uint16_t size)
 {
 	return nvs_read(&fs, SETTING_ID_AWS_ENDPOINT, ep, size);
 }
 
-int nvStoreAwsClientId(u8_t *id, u16_t size)
+int nvStoreAwsClientId(uint8_t *id, uint16_t size)
 {
 	return nvs_write(&fs, SETTING_ID_AWS_CLIENT_ID, id, size);
 }
 
-int nvReadAwsClientId(u8_t *id, u16_t size)
+int nvReadAwsClientId(uint8_t *id, uint16_t size)
 {
 	return nvs_read(&fs, SETTING_ID_AWS_CLIENT_ID, id, size);
 }
 
-int nvStoreAwsRootCa(u8_t *cert, u16_t size)
+int nvStoreAwsRootCa(uint8_t *cert, uint16_t size)
 {
 	return nvs_write(&fs, SETTING_ID_AWS_ROOT_CA, cert, size);
 }
 
-int nvReadAwsRootCa(u8_t *cert, u16_t size)
+int nvReadAwsRootCa(uint8_t *cert, uint16_t size)
 {
 	return nvs_read(&fs, SETTING_ID_AWS_ROOT_CA, cert, size);
 }
@@ -191,7 +192,7 @@ int nvDeleteAwsRootCa(void)
 	return nvs_delete(&fs, SETTING_ID_AWS_ROOT_CA);
 }
 
-int nvInitLwm2mConfig(void *data, void *init_value, u16_t size)
+int nvInitLwm2mConfig(void *data, void *init_value, uint16_t size)
 {
 	int rc = nvs_read(&fs, SETTING_ID_LWM2M_CONFIG, data, size);
 	if (rc != size) {
@@ -204,7 +205,7 @@ int nvInitLwm2mConfig(void *data, void *init_value, u16_t size)
 	return rc;
 }
 
-int nvWriteLwm2mConfig(void *data, u16_t size)
+int nvWriteLwm2mConfig(void *data, uint16_t size)
 {
 	return nvs_write(&fs, SETTING_ID_LWM2M_CONFIG, data, size);
 }

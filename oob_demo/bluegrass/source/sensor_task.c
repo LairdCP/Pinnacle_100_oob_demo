@@ -46,14 +46,14 @@ LOG_MODULE_REGISTER(sensor_task);
 #define SENSOR_TASK_QUEUE_DEPTH 32
 #endif
 
-/** This is the timer tick rate for how often the AWS state is checked */
-#ifndef AWS_FIFO_CHECK_RATE_TICKS
-#define AWS_FIFO_CHECK_RATE_TICKS K_SECONDS(10)
+/** This is the timer rate for how often the AWS state is checked */
+#ifndef AWS_FIFO_CHECK_RATE_SECONDS
+#define AWS_FIFO_CHECK_RATE_SECONDS 10
 #endif
 
 /** If the AWS connection is down for this long, then the AWS fifo is purged. */
-#ifndef AWS_FIFO_PURGE_THRESHOLD_TICKS
-#define AWS_FIFO_PURGE_THRESHOLD_TICKS K_SECONDS(60)
+#ifndef AWS_FIFO_PURGE_THRESHOLD_SECONDS
+#define AWS_FIFO_PURGE_THRESHOLD_SECONDS 60
 #endif
 
 /** At 1 second there are duplicate requests for shadow information. */
@@ -73,8 +73,8 @@ typedef struct SensorTask {
 	struct bt_gatt_discover_params dp;
 	struct bt_gatt_subscribe_params sp;
 	struct bt_gatt_exchange_params mp;
-	u16_t writeHandle;
-	u16_t mtu;
+	uint16_t writeHandle;
+	uint16_t mtu;
 	bool connected;
 	bool paired;
 	bool resetSent;
@@ -85,7 +85,7 @@ typedef struct SensorTask {
 	struct k_timer fifoTimer;
 	struct k_timer resetTimer;
 	struct k_timer sensorTick;
-	u32_t fifoTicks;
+	uint32_t fifoTicks;
 	int scanUserId;
 } SensorTaskObj_t;
 
@@ -164,8 +164,8 @@ static DispatchResult_t RetryConfigRequest(SensorTaskObj_t *pObj);
 static void AckConfigRequest(SensorTaskObj_t *pObj);
 static void SendSetEpochCommand(void);
 
-static void ConnectedCallback(struct bt_conn *conn, u8_t err);
-static void DisconnectedCallback(struct bt_conn *conn, u8_t reason);
+static void ConnectedCallback(struct bt_conn *conn, uint8_t err);
+static void DisconnectedCallback(struct bt_conn *conn, uint8_t reason);
 
 static void PasskeyDisplayCallback(struct bt_conn *conn, unsigned int passkey);
 static void PasskeyEntryCallback(struct bt_conn *conn);
@@ -173,18 +173,20 @@ static void PasskeyConfirmCallback(struct bt_conn *conn, unsigned int passkey);
 static void SecurityCancelCallback(struct bt_conn *conn);
 static void PairingConfirmCallback(struct bt_conn *conn);
 static void PairingCompleteCallback(struct bt_conn *conn, bool bonded);
-static void PairingFailedCallback(struct bt_conn *conn);
-static void SecurityChangedCallback(struct bt_conn *conn, bt_security_t level);
+static void PairingFailedCallback(struct bt_conn *conn,
+				  enum bt_security_err reason);
+static void SecurityChangedCallback(struct bt_conn *conn, bt_security_t level,
+				    enum bt_security_err err);
 
-static u8_t DiscoveryCallback(struct bt_conn *conn,
-			      const struct bt_gatt_attr *attr,
-			      struct bt_gatt_discover_params *params);
+static uint8_t DiscoveryCallback(struct bt_conn *conn,
+				 const struct bt_gatt_attr *attr,
+				 struct bt_gatt_discover_params *params);
 
-static u8_t NotificationCallback(struct bt_conn *conn,
-				 struct bt_gatt_subscribe_params *params,
-				 const void *data, u16_t length);
+static uint8_t NotificationCallback(struct bt_conn *conn,
+				    struct bt_gatt_subscribe_params *params,
+				    const void *data, uint16_t length);
 
-static void MtuCallback(struct bt_conn *conn, u8_t err,
+static void MtuCallback(struct bt_conn *conn, uint8_t err,
 			struct bt_gatt_exchange_params *params);
 
 static void SendSensorResetTimerCallbackIsr(struct k_timer *timer_id);
@@ -193,8 +195,8 @@ static void SensorTickCallbackIsr(struct k_timer *timer_id);
 static void StartSensorTick(SensorTaskObj_t *pObj);
 
 #if CONFIG_SCAN_FOR_BT510
-static void SensorTaskAdvHandler(const bt_addr_le_t *addr, s8_t rssi, u8_t type,
-				 struct net_buf_simple *ad);
+static void SensorTaskAdvHandler(const bt_addr_le_t *addr, int8_t rssi,
+				 uint8_t type, struct net_buf_simple *ad);
 #endif
 
 /******************************************************************************/
@@ -272,8 +274,8 @@ static void SensorTaskThread(void *pArg1, void *pArg2, void *pArg3)
 
 	k_timer_init(&pObj->fifoTimer, AwsFifoMonitorTimerCallbackIsr, NULL);
 	k_timer_user_data_set(&pObj->fifoTimer, pObj);
-	k_timer_start(&pObj->fifoTimer, AWS_FIFO_CHECK_RATE_TICKS,
-		      AWS_FIFO_CHECK_RATE_TICKS);
+	k_timer_start(&pObj->fifoTimer, K_SECONDS(AWS_FIFO_CHECK_RATE_SECONDS),
+		      K_SECONDS(AWS_FIFO_CHECK_RATE_SECONDS));
 
 	k_timer_init(&pObj->resetTimer, SendSensorResetTimerCallbackIsr, NULL);
 	k_timer_user_data_set(&pObj->resetTimer, pObj);
@@ -288,7 +290,8 @@ static void SensorTaskThread(void *pArg1, void *pArg2, void *pArg3)
 
 	while (true) {
 		Framework_MsgReceiver(&pObj->msgTask.rxer);
-		u32_t numUsed = k_msgq_num_used_get(pObj->msgTask.rxer.pQueue);
+		uint32_t numUsed =
+			k_msgq_num_used_get(pObj->msgTask.rxer.pQueue);
 		if (numUsed > SENSOR_TASK_QUEUE_DEPTH / 2) {
 			LOG_WRN("Sensor Task filled to %u of %u", numUsed,
 				SENSOR_TASK_QUEUE_DEPTH);
@@ -350,7 +353,7 @@ static DispatchResult_t DiscoveryMsgHandler(FwkMsgReceiver_t *pMsgRxer,
 	SensorTaskObj_t *pObj = FWK_TASK_CONTAINER(SensorTaskObj_t);
 	if (pMsg->header.msgCode == FMC_DISCOVERY_COMPLETE) {
 		k_timer_start(&pObj->msgTask.timer, ENCRYPTION_TIMEOUT_TICKS,
-			      0);
+			      K_NO_WAIT);
 		EncryptLink(pObj);
 	} else {
 		RequestDisconnect(pObj, "Discovery Failure");
@@ -385,7 +388,8 @@ static DispatchResult_t ResponseHandler(FwkMsgReceiver_t *pMsgRxer,
 			pObj->pCmdMsg->resetRequest = false;
 			/* Don't block this task because it also processes adverts */
 			k_timer_start(&pObj->resetTimer,
-				      BT510_WRITE_TO_RESET_DELAY_TICKS, 0);
+				      BT510_WRITE_TO_RESET_DELAY_TICKS,
+				      K_NO_WAIT);
 		} else if (pObj->pCmdMsg->setEpochRequest) {
 			pObj->pCmdMsg->setEpochRequest = false;
 			SendSetEpochCommand();
@@ -462,7 +466,7 @@ static DispatchResult_t AwsDecommissionMsgHandler(FwkMsgReceiver_t *pMsgRxer,
 static void StartSensorTick(SensorTaskObj_t *pObj)
 {
 	k_timer_start(&pObj->sensorTick, K_SECONDS(SENSOR_TICK_RATE_SECONDS),
-		      0);
+		      K_NO_WAIT);
 }
 
 static DispatchResult_t SubscriptionAckMsgHandler(FwkMsgReceiver_t *pMsgRxer,
@@ -483,6 +487,7 @@ static DispatchResult_t ConfigRequestMsgHandler(FwkMsgReceiver_t *pMsgRxer,
 static DispatchResult_t ConnectRequestMsgHandler(FwkMsgReceiver_t *pMsgRxer,
 						 FwkMsg_t *pMsg)
 {
+	int err;
 	SensorTaskObj_t *pObj = FWK_TASK_CONTAINER(SensorTaskObj_t);
 
 	if (pObj->pCmdMsg == NULL && pObj->conn == NULL) { /* not busy */
@@ -493,16 +498,18 @@ static DispatchResult_t ConnectRequestMsgHandler(FwkMsgReceiver_t *pMsgRxer,
 		pObj->paired = false;
 		pObj->resetSent = false;
 		pObj->configComplete = false;
-		pObj->conn = bt_conn_create_le(&pObj->pCmdMsg->addr,
-					       BT_LE_CONN_PARAM_DEFAULT);
+		err = bt_conn_le_create(&pObj->pCmdMsg->addr,
+					BT_CONN_LE_CREATE_CONN,
+					BT_LE_CONN_PARAM_DEFAULT, &pObj->conn);
 
 		LOG_INF("Connection Request (%u): '%s' (%s) %x-%u",
 			pObj->pCmdMsg->attempts,
 			log_strdup(pObj->pCmdMsg->name),
 			log_strdup(pObj->pCmdMsg->addrString),
-			POINTER_TO_UINT(pObj->conn), bt_conn_index(pObj->conn));
+			(uint32_t)POINTER_TO_UINT(pObj->conn),
+			bt_conn_index(pObj->conn));
 
-		if (pObj->conn == NULL) {
+		if (err) {
 			return RetryConfigRequest(pObj);
 		} else {
 			/* If a connection is requested on the last ad from the sensor,
@@ -512,7 +519,7 @@ static DispatchResult_t ConnectRequestMsgHandler(FwkMsgReceiver_t *pMsgRxer,
 			 * (state == BT_CONN_CONNECT_SCAN)
 			 * Bug 16483: Zephyr 2.x - Retest connection timeout fix (stack) */
 			k_timer_start(&pObj->msgTask.timer,
-				      CONNECTION_TIMEOUT_TICKS, 0);
+				      CONNECTION_TIMEOUT_TICKS, K_NO_WAIT);
 			return DISPATCH_DO_NOT_FREE;
 		}
 	} else {
@@ -655,7 +662,7 @@ static int ExchangeMtu(void)
 
 static int EncryptLink(SensorTaskObj_t *pObj)
 {
-	int status = bt_conn_security(pObj->conn, BT_SECURITY_HIGH);
+	int status = bt_conn_set_security(pObj->conn, BT_SECURITY_L3);
 	LOG_DBG("%d", status);
 	return status;
 }
@@ -690,10 +697,10 @@ static void AckConfigRequest(SensorTaskObj_t *pObj)
 /******************************************************************************/
 /* This following code expects to be on a 32-bit architecture for atomicity. */
 
-static void ConnectedCallback(struct bt_conn *conn, u8_t err)
+static void ConnectedCallback(struct bt_conn *conn, uint8_t err)
 {
-	LOG_DBG("%x-%u (%s)", POINTER_TO_UINT(conn), bt_conn_index(conn),
-		lbt_get_hci_err_string(err));
+	LOG_DBG("%x-%u (%s)", (uint32_t)POINTER_TO_UINT(conn),
+		bt_conn_index(conn), lbt_get_hci_err_string(err));
 
 	/* CONFIG_BT_CREATE_CONN_TIMEOUT cannot be the default value of 3 when
 	 * the BT510 is advertising at its default rate of 1 second.  This will
@@ -711,10 +718,10 @@ static void ConnectedCallback(struct bt_conn *conn, u8_t err)
 	}
 }
 
-static void DisconnectedCallback(struct bt_conn *conn, u8_t reason)
+static void DisconnectedCallback(struct bt_conn *conn, uint8_t reason)
 {
-	LOG_DBG("%x-%u %s", POINTER_TO_UINT(conn), bt_conn_index(conn),
-		lbt_get_hci_err_string(reason));
+	LOG_DBG("%x-%u %s", (uint32_t)POINTER_TO_UINT(conn),
+		bt_conn_index(conn), lbt_get_hci_err_string(reason));
 	if (conn == st.conn) {
 		FRAMEWORK_MSG_SEND_TO_SELF(FWK_ID_SENSOR_TASK, FMC_DISCONNECT);
 	}
@@ -755,7 +762,8 @@ static void SecurityCancelCallback(struct bt_conn *conn)
 	}
 }
 
-static void SecurityChangedCallback(struct bt_conn *conn, bt_security_t level)
+static void SecurityChangedCallback(struct bt_conn *conn, bt_security_t level,
+				    enum bt_security_err err)
 {
 	LOG_DBG("%u", level);
 	if (conn == st.conn) {
@@ -778,7 +786,8 @@ static void PairingCompleteCallback(struct bt_conn *conn, bool bonded)
 	}
 }
 
-static void PairingFailedCallback(struct bt_conn *conn)
+static void PairingFailedCallback(struct bt_conn *conn,
+				  enum bt_security_err reason)
 {
 	LOG_DBG(".");
 	if (conn == st.conn) {
@@ -786,9 +795,9 @@ static void PairingFailedCallback(struct bt_conn *conn)
 	}
 }
 
-static u8_t DiscoveryCallback(struct bt_conn *conn,
-			      const struct bt_gatt_attr *attr,
-			      struct bt_gatt_discover_params *params)
+static uint8_t DiscoveryCallback(struct bt_conn *conn,
+				 const struct bt_gatt_attr *attr,
+				 struct bt_gatt_discover_params *params)
 {
 	if (conn != st.conn) {
 		return BT_GATT_ITER_STOP;
@@ -826,9 +835,9 @@ static u8_t DiscoveryCallback(struct bt_conn *conn,
 	return BT_GATT_ITER_STOP;
 }
 
-static u8_t NotificationCallback(struct bt_conn *conn,
-				 struct bt_gatt_subscribe_params *params,
-				 const void *data, u16_t length)
+static uint8_t NotificationCallback(struct bt_conn *conn,
+				    struct bt_gatt_subscribe_params *params,
+				    const void *data, uint16_t length)
 {
 	if (conn != st.conn) {
 		return BT_GATT_ITER_STOP;
@@ -878,7 +887,7 @@ static void CreateAndSendResponseMsg(BracketObj_t *p)
 	Bracket_Reset(p);
 }
 
-static void MtuCallback(struct bt_conn *conn, u8_t err,
+static void MtuCallback(struct bt_conn *conn, uint8_t err,
 			struct bt_gatt_exchange_params *params)
 {
 	if (conn == st.conn) {
@@ -909,10 +918,10 @@ static void AwsFifoMonitorTimerCallbackIsr(struct k_timer *timer_id)
 	if (pObj->awsReady) {
 		pObj->fifoTicks = 0;
 	} else {
-		pObj->fifoTicks += AWS_FIFO_CHECK_RATE_TICKS;
+		pObj->fifoTicks += (AWS_FIFO_CHECK_RATE_SECONDS * MSEC_PER_SEC);
 	}
 
-	if (pObj->fifoTicks >= AWS_FIFO_PURGE_THRESHOLD_TICKS) {
+	if (pObj->fifoTicks >= (AWS_FIFO_PURGE_THRESHOLD_SECONDS * MSEC_PER_SEC)) {
 		pObj->fifoTicks = 0;
 		size_t flushed = Framework_Flush(FWK_ID_AWS);
 		if (flushed > 0) {
@@ -931,8 +940,8 @@ static void SensorTickCallbackIsr(struct k_timer *timer_id)
 /* Occurs in BT RX Thread context                                             */
 /******************************************************************************/
 #if CONFIG_SCAN_FOR_BT510
-static void SensorTaskAdvHandler(const bt_addr_le_t *addr, s8_t rssi, u8_t type,
-				 struct net_buf_simple *ad)
+static void SensorTaskAdvHandler(const bt_addr_le_t *addr, int8_t rssi,
+				 uint8_t type, struct net_buf_simple *ad)
 {
 	/* After filtering for BT510 sensors, send a message so we can
 	process ads in Sensor Task context.

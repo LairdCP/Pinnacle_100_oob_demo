@@ -46,7 +46,7 @@ typedef enum SENSOR_EVENT {
 
 	NUMBER_OF_SENSOR_EVENTS
 } SensorEventType_t;
-BUILD_ASSERT_MSG(sizeof(SensorEventType_t) <= sizeof(u8_t),
+BUILD_ASSERT(sizeof(SensorEventType_t) <= sizeof(uint8_t),
 		 "Sensor Event enum too large");
 
 /* The IG60 publishes events with these names and a voltage or temperature. */

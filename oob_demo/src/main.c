@@ -126,7 +126,7 @@ static void awsMsgHandler(void);
 static void awsSvcEvent(enum aws_svc_event event);
 static int setAwsCredentials(void);
 static void lteEvent(enum lte_event event);
-static void softwareReset(u32_t DelayMs);
+static void softwareReset(uint32_t DelayMs);
 
 #ifdef CONFIG_LWM2M
 static void appStateInitLwm2mClient(void);
@@ -207,8 +207,9 @@ void main(void)
 	power_svc_init();
 	power_init();
 
+#ifdef CONFIG_LAIRDCONNECTIVITY_BLR
 	bootloader_init();
-
+#endif
 	rc = aws_svc_init(lteInfo->IMEI);
 	if (rc != 0) {
 		goto exit;
@@ -272,8 +273,8 @@ EXTERNED void Framework_AssertionHandler(char *file, int line)
 static void initializeBle(const char *imei)
 {
 	int err;
-	char devName[sizeof(CONFIG_BT_DEVICE_NAME "-") +
-		     NUMBER_OF_IMEI_DIGITS_TO_USE_IN_DEV_NAME];
+	static char bleDevName[sizeof(CONFIG_BT_DEVICE_NAME "-") +
+			       NUMBER_OF_IMEI_DIGITS_TO_USE_IN_DEV_NAME];
 	int devNameEnd;
 	int imeiEnd;
 
@@ -286,15 +287,17 @@ static void initializeBle(const char *imei)
 	LOG_INF("Bluetooth initialized");
 
 	/* add digits of IMEI to dev name */
-	strncpy(devName, CONFIG_BT_DEVICE_NAME "-", sizeof(devName) - 1);
-	devNameEnd = strlen(devName);
+	strncpy(bleDevName, CONFIG_BT_DEVICE_NAME "-", sizeof(bleDevName) - 1);
+	devNameEnd = strlen(bleDevName);
 	imeiEnd = strlen(imei);
-	strncat(devName + devNameEnd,
+	strncat(bleDevName + devNameEnd,
 		imei + imeiEnd - NUMBER_OF_IMEI_DIGITS_TO_USE_IN_DEV_NAME,
 		NUMBER_OF_IMEI_DIGITS_TO_USE_IN_DEV_NAME);
-	err = bt_set_name((const char *)devName);
+	err = bt_set_name((const char *)bleDevName);
 	if (err) {
 		LOG_ERR("Failed to set device name (%d)", err);
+	} else {
+		LOG_INF("BLE device name set to [%s]", log_strdup(bleDevName));
 	}
 }
 
@@ -697,12 +700,12 @@ static void initializeAwsMsgReceiver(void)
 {
 	awsMsgReceiver.id = FWK_ID_AWS;
 	awsMsgReceiver.pQueue = &awsQ;
-	awsMsgReceiver.rxBlockTicks = 0; /* unused */
+	awsMsgReceiver.rxBlockTicks = K_NO_WAIT; /* unused */
 	awsMsgReceiver.pMsgDispatcher = NULL; /* unused */
 	Framework_RegisterReceiver(&awsMsgReceiver);
 }
 
-static void softwareReset(u32_t DelayMs)
+static void softwareReset(uint32_t DelayMs)
 {
 #ifdef CONFIG_REBOOT
 	LOG_ERR("Software Reset in %d milliseconds", DelayMs);
@@ -725,7 +728,7 @@ static void configure_leds(void)
 static void StartKeepAliveTimer(void)
 {
 	k_timer_start(&awsKeepAliveTimer,
-		      K_SECONDS(CONFIG_AWS_KEEP_ALIVE_SECONDS), 0);
+		      K_SECONDS(CONFIG_AWS_KEEP_ALIVE_SECONDS), K_NO_WAIT);
 }
 
 static void AwsKeepAliveTimerCallbackIsr(struct k_timer *timer_id)
@@ -736,7 +739,7 @@ static void AwsKeepAliveTimerCallbackIsr(struct k_timer *timer_id)
 }
 
 /* Override weak implementation in laird_power.c */
-void power_measurement_callback(u8_t integer, u8_t decimal)
+void power_measurement_callback(uint8_t integer, uint8_t decimal)
 {
 	power_svc_set_voltage(integer, decimal);
 }
@@ -745,7 +748,7 @@ void power_measurement_callback(u8_t integer, u8_t decimal)
 /* Shell                                                                      */
 /******************************************************************************/
 #ifdef CONFIG_SHELL
-static int shellSetCert(enum CREDENTIAL_TYPE type, u8_t *cred)
+static int shellSetCert(enum CREDENTIAL_TYPE type, uint8_t *cred)
 {
 	int rc;
 	int certSize;

@@ -34,11 +34,11 @@ static struct bt_uuid_128 SENSOR_STATE_UUID = BSS_BASE_UUID_128(0x0001);
 static struct bt_uuid_128 SENSOR_BT_ADDR_UUID = BSS_BASE_UUID_128(0x0002);
 
 struct ble_sensor_service {
-	u8_t sensor_state;
+	uint8_t sensor_state;
 	char sensor_bt_addr[BT_ADDR_LE_STR_LEN + 1];
 
-	u16_t sensor_state_index;
-	u16_t sensor_bt_addr_index;
+	uint16_t sensor_state_index;
+	uint16_t sensor_bt_addr_index;
 };
 
 struct ccc_table {
@@ -58,18 +58,18 @@ static struct bt_conn *bss_conn = NULL;
 /******************************************************************************/
 static ssize_t read_sensor_bt_addr(struct bt_conn *conn,
 				   const struct bt_gatt_attr *attr, void *buf,
-				   u16_t len, u16_t offset);
+				   uint16_t len, uint16_t offset);
 
 static void sensor_state_ccc_handler(const struct bt_gatt_attr *attr,
-				     u16_t value);
+				     uint16_t value);
 
 static void sensor_bt_addr_ccc_handler(const struct bt_gatt_attr *attr,
-				       u16_t value);
+				       uint16_t value);
 
-static void bss_notify(bool notify, u16_t index, u16_t length);
+static void bss_notify(bool notify, uint16_t index, uint16_t length);
 
-static void bss_connected(struct bt_conn *conn, u8_t err);
-static void bss_disconnected(struct bt_conn *conn, u8_t reason);
+static void bss_connected(struct bt_conn *conn, uint8_t err);
+static void bss_disconnected(struct bt_conn *conn, uint8_t reason);
 
 /******************************************************************************/
 /* Sensor Service                                                             */
@@ -98,7 +98,7 @@ static struct bt_conn_cb bss_conn_callbacks = {
 /******************************************************************************/
 /* Global Function Definitions                                                */
 /******************************************************************************/
-void bss_set_sensor_state(u8_t state)
+void bss_set_sensor_state(uint8_t state)
 {
 	bss.sensor_state = state;
 	bss_notify(ccc.sensor_state.notify, bss.sensor_state_index,
@@ -133,25 +133,25 @@ void bss_init()
 /******************************************************************************/
 static ssize_t read_sensor_bt_addr(struct bt_conn *conn,
 				   const struct bt_gatt_attr *attr, void *buf,
-				   u16_t len, u16_t offset)
+				   uint16_t len, uint16_t offset)
 {
 	return lbt_read_string(conn, attr, buf, len, offset,
 			       BT_ADDR_LE_STR_LEN);
 }
 
 static void sensor_state_ccc_handler(const struct bt_gatt_attr *attr,
-				     u16_t value)
+				     uint16_t value)
 {
 	ccc.sensor_state.notify = IS_NOTIFIABLE(value);
 }
 
 static void sensor_bt_addr_ccc_handler(const struct bt_gatt_attr *attr,
-				       u16_t value)
+				       uint16_t value)
 {
 	ccc.sensor_bt_addr.notify = IS_NOTIFIABLE(value);
 }
 
-static void bss_notify(bool notify, u16_t index, u16_t length)
+static void bss_notify(bool notify, uint16_t index, uint16_t length)
 {
 	struct bt_conn *connection_handle = bss_get_conn();
 	if (connection_handle != NULL) {
@@ -164,7 +164,7 @@ static void bss_notify(bool notify, u16_t index, u16_t length)
 	}
 }
 
-static void bss_connected(struct bt_conn *conn, u8_t err)
+static void bss_connected(struct bt_conn *conn, uint8_t err)
 {
 	if (err) {
 		return;
@@ -177,7 +177,7 @@ static void bss_connected(struct bt_conn *conn, u8_t err)
 	bss_conn = bt_conn_ref(conn);
 }
 
-static void bss_disconnected(struct bt_conn *conn, u8_t reason)
+static void bss_disconnected(struct bt_conn *conn, uint8_t reason)
 {
 	if (!lbt_slave_role(conn)) {
 		return;

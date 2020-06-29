@@ -12,7 +12,7 @@
 /******************************************************************************/
 /* Includes                                                                   */
 /******************************************************************************/
-#include <json.h>
+#include <data/json.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -127,7 +127,7 @@ static const struct json_obj_descr shadow_descr[] = {
 /* Global Function Prototypes                                                 */
 /******************************************************************************/
 int awsInit(void);
-int awsSetCredentials(const u8_t *cert, const u8_t *key);
+int awsSetCredentials(const uint8_t *cert, const uint8_t *key);
 void awsSetRootCa(const char *cred);
 void awsSetEndpoint(const char *ep);
 void awsSetClientId(const char *id);
@@ -136,7 +136,7 @@ int awsConnect(void);
 bool awsConnected(void);
 void awsDisconnect(void);
 int awsKeepAlive(void);
-int awsSendData(char *data, u8_t *topic);
+int awsSendData(char *data, uint8_t *topic);
 int awsPublishShadowPersistentData(void);
 int awsSetShadowKernelVersion(const char *version);
 int awsSetShadowIMEI(const char *imei);
@@ -147,7 +147,7 @@ int awsSetShadowAppFirmwareVersion(const char *version);
 int awsPublishBl654SensorData(float temperature, float humidity,
 			      float pressure);
 int awsPublishPinnacleData(int radioRssi, int radioSinr);
-int awsSubscribe(u8_t *topic, u8_t subscribe);
+int awsSubscribe(uint8_t *topic, uint8_t subscribe);
 int awsGetShadow(void);
 int awsGetAcceptedSubscribe(void);
 int awsGetAcceptedUnsub(void);

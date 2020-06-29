@@ -48,8 +48,8 @@ LOG_MODULE_REGISTER(lwm2m_client);
 /******************************************************************************/
 /* Local Data Definitions                                                     */
 /******************************************************************************/
-static u8_t led_state;
-static u32_t lwm2m_time;
+static uint8_t led_state;
+static uint32_t lwm2m_time;
 
 static struct lwm2m_ctx client;
 
@@ -63,12 +63,12 @@ static char server_addr[SERVER_ADDR_MAX_SIZE];
 /******************************************************************************/
 static void lwm2m_client_init_internal(void);
 
-static int device_reboot_cb(u16_t obj_inst_id);
-static int device_factory_default_cb(u16_t obj_inst_id);
+static int device_reboot_cb(uint16_t obj_inst_id);
+static int device_factory_default_cb(uint16_t obj_inst_id);
 static int lwm2m_setup(const char *serial_number, const char *imei);
 static void rd_client_event(struct lwm2m_ctx *client,
 			    enum lwm2m_rd_client_event client_event);
-static int led_on_off_cb(u16_t obj_inst_id, u8_t *data, u16_t data_len,
+static int led_on_off_cb(uint16_t obj_inst_id, uint8_t *data, uint16_t data_len,
 			 bool last_block, size_t total_size);
 static int resolve_server_address(void);
 static void create_bl654_sensor_objects(void);
@@ -106,7 +106,7 @@ int lwm2m_set_bl654_sensor_data(float temperature, float humidity,
 /******************************************************************************/
 /* Local Function Definitions                                                 */
 /******************************************************************************/
-static int device_reboot_cb(u16_t obj_inst_id)
+static int device_reboot_cb(uint16_t obj_inst_id)
 {
 #ifdef CONFIG_REBOOT
 	LOG_INF("DEVICE: REBOOT");
@@ -117,13 +117,13 @@ static int device_reboot_cb(u16_t obj_inst_id)
 #endif
 }
 
-static int device_factory_default_cb(u16_t obj_inst_id)
+static int device_factory_default_cb(uint16_t obj_inst_id)
 {
 	LOG_INF("DEVICE: FACTORY DEFAULT");
 	return -1;
 }
 
-static void *current_time_read_cb(u16_t obj_inst_id, size_t *data_len)
+static void *current_time_read_cb(uint16_t obj_inst_id, size_t *data_len)
 {
 	/* The device object doesn't allow this to be set because
 	 * reads are intercepted */
@@ -137,8 +137,8 @@ static int lwm2m_setup(const char *serial_number, const char *imei)
 {
 	int ret;
 	char *server_url;
-	u16_t server_url_len;
-	u8_t server_url_flags;
+	uint16_t server_url_len;
+	uint8_t server_url_flags;
 
 	/* setup SECURITY object */
 
@@ -301,10 +301,10 @@ static void lwm2m_client_init_internal(void)
 	lwm2m_initialized = true;
 }
 
-static int led_on_off_cb(u16_t obj_inst_id, u8_t *data, u16_t data_len,
+static int led_on_off_cb(uint16_t obj_inst_id, uint8_t *data, uint16_t data_len,
 			 bool last_block, size_t total_size)
 {
-	u8_t led_val = *(u8_t *)data;
+	uint8_t led_val = *(uint8_t *)data;
 	if (led_val != led_state) {
 		if (led_val) {
 			led_turn_on(GREEN_LED2);
@@ -353,8 +353,8 @@ static struct float32_value make_float_value(float v)
 {
 	struct float32_value f;
 
-	f.val1 = (s32_t)v;
-	f.val2 = (s32_t)(LWM2M_FLOAT32_DEC_MAX * (v - f.val1));
+	f.val1 = (int32_t)v;
+	f.val2 = (int32_t)(LWM2M_FLOAT32_DEC_MAX * (v - f.val1));
 
 	return f;
 }

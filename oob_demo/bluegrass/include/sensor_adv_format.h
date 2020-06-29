@@ -45,34 +45,34 @@ extern "C" {
 
 /* Format of the Manufacturer Specific Data using 1M PHY in Advertisement */
 struct Bt510AdEvent {
-	u16_t companyId;
-	u16_t protocolId;
-	u16_t networkId;
-	u16_t flags;
+	uint16_t companyId;
+	uint16_t protocolId;
+	uint16_t networkId;
+	uint16_t flags;
 	bt_addr_t addr;
-	u8_t recordType;
-	u16_t id;
-	u32_t epoch;
-	u16_t data;
-	u16_t dataReserved;
-	u8_t resetCount;
+	uint8_t recordType;
+	uint16_t id;
+	uint32_t epoch;
+	uint16_t data;
+	uint16_t dataReserved;
+	uint8_t resetCount;
 } __packed;
 typedef struct Bt510AdEvent Bt510AdEvent_t;
 
 /* Format of the  Manufacturer Specific Data using 1M PHY in Scan Response */
 struct Bt510Rsp {
-	u16_t companyId;
-	u16_t protocolId;
-	u16_t productId;
-	u8_t firmwareVersionMajor;
-	u8_t firmwareVersionMinor;
-	u8_t firmwareVersionPatch;
-	u8_t firmwareType;
-	u8_t configVersion;
-	u8_t bootloaderVersionMajor;
-	u8_t bootloaderVersionMinor;
-	u8_t bootloaderVersionPatch;
-	u8_t hardwareMinorVersion;
+	uint16_t companyId;
+	uint16_t protocolId;
+	uint16_t productId;
+	uint8_t firmwareVersionMajor;
+	uint8_t firmwareVersionMinor;
+	uint8_t firmwareVersionPatch;
+	uint8_t firmwareType;
+	uint8_t configVersion;
+	uint8_t bootloaderVersionMajor;
+	uint8_t bootloaderVersionMinor;
+	uint8_t bootloaderVersionPatch;
+	uint8_t hardwareMinorVersion;
 } __packed;
 typedef struct Bt510Rsp Bt510Rsp_t;
 
@@ -81,17 +81,17 @@ typedef struct Bt510Rsp Bt510Rsp_t;
  */
 #define BT510_MSD_AD_FIELD_LENGTH 0x1b
 #define BT510_MSD_AD_PAYLOAD_LENGTH (BT510_MSD_AD_FIELD_LENGTH - 1)
-BUILD_ASSERT_MSG(sizeof(Bt510AdEvent_t) == BT510_MSD_AD_PAYLOAD_LENGTH,
+BUILD_ASSERT(sizeof(Bt510AdEvent_t) == BT510_MSD_AD_PAYLOAD_LENGTH,
 		 "BT510 Advertisement data size mismatch (check packing)");
 
 #define BT510_MSD_RSP_FIELD_LENGTH 0x10
 #define BT510_MSD_RSP_PAYLOAD_LENGTH (BT510_MSD_RSP_FIELD_LENGTH - 1)
-BUILD_ASSERT_MSG(sizeof(Bt510Rsp_t) == BT510_MSD_RSP_PAYLOAD_LENGTH,
+BUILD_ASSERT(sizeof(Bt510Rsp_t) == BT510_MSD_RSP_PAYLOAD_LENGTH,
 		 "BT510 Scan Response size mismatch (check packing)");
 
 #define SENSOR_AD_HEADER_SIZE 4
-extern const u8_t BT510_AD_HEADER[SENSOR_AD_HEADER_SIZE];
-extern const u8_t BT510_RSP_HEADER[SENSOR_AD_HEADER_SIZE];
+extern const uint8_t BT510_AD_HEADER[SENSOR_AD_HEADER_SIZE];
+extern const uint8_t BT510_RSP_HEADER[SENSOR_AD_HEADER_SIZE];
 
 #ifdef __cplusplus
 }

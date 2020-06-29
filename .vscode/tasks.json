@@ -6,10 +6,7 @@
     "options": {
       "shell": {
         "executable": "cmd.exe",
-        "args": [
-          "/d",
-          "/c"
-        ]
+        "args": ["/d", "/c"]
       }
     }
   },
@@ -17,7 +14,7 @@
     {
       "label": "build",
       "type": "shell",
-      "command": "west build -b pinnacle_100_dvk -d build oob_demo",
+      "command": "west build -b pinnacle_100_dvk -d ${workspaceRoot}/build ${workspaceRoot}/oob_demo",
       "windows": {
         "command": "west build -b pinnacle_100_dvk -d ${workspaceRoot}\\build ${workspaceRoot}\\oob_demo"
       },
@@ -29,7 +26,7 @@
     {
       "label": "re-build",
       "type": "shell",
-      "command": "west build -p -b pinnacle_100_dvk -d build oob_demo",
+      "command": "west build -p -b pinnacle_100_dvk -d ${workspaceRoot}/build ${workspaceRoot}/oob_demo",
       "windows": {
         "command": "west build -p -b pinnacle_100_dvk -d ${workspaceRoot}\\build ${workspaceRoot}\\oob_demo"
       },
@@ -41,7 +38,7 @@
     {
       "label": "flash application",
       "type": "shell",
-      "command": "west flash -d build",
+      "command": "west flash -d ${workspaceRoot}/build",
       "windows": {
         "command": "west flash -d ${workspaceRoot}\\build"
       },
@@ -50,7 +47,7 @@
     {
       "label": "clean",
       "type": "shell",
-      "command": "west build -t clean -d build",
+      "command": "west build -t clean -d ${workspaceRoot}/build",
       "windows": {
         "command": "west build -t clean -d ${workspaceRoot}\\build"
       },
@@ -59,14 +56,14 @@
     {
       "label": "pristine",
       "type": "shell",
-      "command": "west build -t pristine -d build",
+      "command": "west build -t pristine -d ${workspaceRoot}/build",
       "windows": {
         "command": "west build -t pristine -d ${workspaceRoot}\\build"
       },
       "problemMatcher": []
     },
     {
-      "label": "configurator",
+      "label": "menuconfig",
       "type": "shell",
       "command": "west build -t menuconfig",
       "windows": {
@@ -77,7 +74,7 @@
     {
       "label": "build-lwm2m",
       "type": "shell",
-      "command": "west build -b pinnacle_100_dvk -d build oob_demo -- -DCONF_FILE=\"${workspaceRoot}/oob_demo/prj.conf ${workspaceRoot}/oob_demo/overlay_lwm2m_dtls.conf\"",
+      "command": "west build -b pinnacle_100_dvk -d ${workspaceRoot}/build ${workspaceRoot}/oob_demo -- -DCONF_FILE=\"${workspaceRoot}/oob_demo/prj.conf ${workspaceRoot}/oob_demo/overlay_lwm2m_dtls.conf\"",
       "windows": {
         "command": "west build -b pinnacle_100_dvk -d ${workspaceRoot}\\build ${workspaceRoot}\\oob_demo -- -DCONF_FILE=\"${workspaceRoot}\\oob_demo\\prj.conf ${workspaceRoot}\\oob_demo\\overlay_lwm2m_dtls.conf\""
       },
@@ -86,5 +83,14 @@
         "fileLocation": "absolute"
       }
     },
+    {
+      "label": "ramreport",
+      "type": "shell",
+      "command": "west build -d build ${workspaceRoot}/oob_demo --target ram_report > ${workspaceRoot}/build/ram_report",
+      "windows": {
+        "command": "west build -d build ${workspaceRoot}\\oob_demo --target ram_report > ${workspaceRoot}\\build\\ram_report"
+      },
+      "problemMatcher": []
+    }
   ]
 }

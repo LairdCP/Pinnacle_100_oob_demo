@@ -25,10 +25,10 @@ extern "C" {
 /* Global Constants, Macros and Type Definitions                              */
 /******************************************************************************/
 typedef struct SensorLogEvent {
-	u32_t epoch;
-	u16_t data;
-	u8_t recordType;
-	u8_t idLsb;
+	uint32_t epoch;
+	uint16_t data;
+	uint8_t recordType;
+	uint8_t idLsb;
 } SensorLogEvent_t;
 
 typedef struct SensorLog SensorLog_t;

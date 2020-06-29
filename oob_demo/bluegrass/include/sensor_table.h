@@ -61,13 +61,13 @@ typedef struct SubscribeMsg {
 
 typedef struct SensorCmdMsg {
 	FwkMsgHeader_t header;
-	u32_t attempts;
+	uint32_t attempts;
 	bt_addr_le_t addr;
 	bool dumpRequest;
 	bool resetRequest;
 	bool setEpochRequest;
-	u32_t configVersion;
-	u32_t passkey;
+	uint32_t configVersion;
+	uint32_t passkey;
 	char name[SENSOR_NAME_MAX_SIZE];
 	char addrString[SENSOR_ADDR_STR_SIZE];
 	size_t tableIndex;
@@ -96,8 +96,8 @@ bool SensorTable_MatchBt510(struct net_buf_simple *ad);
 /**
  * @brief Advertisement parser
  */
-void SensorTable_AdvertisementHandler(const bt_addr_le_t *pAddr, s8_t rssi,
-				      u8_t type, Ad_t *pAd);
+void SensorTable_AdvertisementHandler(const bt_addr_le_t *pAddr, int8_t rssi,
+				      uint8_t type, Ad_t *pAd);
 
 /**
  * @brief Only whitelisted sensors are allowed to send their data to the cloud.

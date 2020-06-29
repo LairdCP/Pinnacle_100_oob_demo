@@ -150,7 +150,7 @@ static int GatewaySubscriptionHandler(void)
 
 static void StartGatewayInitTimer(void)
 {
-	k_timer_start(&gatewayInitTimer, K_SECONDS(1), 0);
+	k_timer_start(&gatewayInitTimer, K_SECONDS(1), K_NO_WAIT);
 }
 
 /******************************************************************************/

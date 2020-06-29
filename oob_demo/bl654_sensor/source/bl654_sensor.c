@@ -56,9 +56,9 @@ static const struct led_blink_pattern LED_SENSOR_SEARCH_PATTERN = {
 
 struct remote_ble_sensor {
 	/* State of app, see BT_DEMO_APP_STATE_XXX */
-	u8_t app_state;
+	uint8_t app_state;
 	/* Handle of ESS service, used when searching for chars */
-	u16_t ess_service_handle;
+	uint16_t ess_service_handle;
 	/* Temperature gatt subscribe parameters, see gatt.h for contents */
 	struct bt_gatt_subscribe_params temperature_subscribe_params;
 	/* Pressure gatt subscribe parameters, see gatt.h for contents */
@@ -80,50 +80,50 @@ enum SENSOR_TYPES {
 /* Local Function Prototypes                                                  */
 /******************************************************************************/
 /* This callback is triggered when notifications from remote device are received */
-static u8_t notify_func_callback(struct bt_conn *conn,
-				 struct bt_gatt_subscribe_params *params,
-				 const void *data, u16_t length);
+static uint8_t notify_func_callback(struct bt_conn *conn,
+				    struct bt_gatt_subscribe_params *params,
+				    const void *data, uint16_t length);
 
 /* This callback is triggered when remote services are discovered */
-static u8_t service_discover_func(struct bt_conn *conn,
+static uint8_t service_discover_func(struct bt_conn *conn,
+				     const struct bt_gatt_attr *attr,
+				     struct bt_gatt_discover_params *params);
+
+/* This callback is triggered when remote characteristics are discovered */
+static uint8_t char_discover_func(struct bt_conn *conn,
 				  const struct bt_gatt_attr *attr,
 				  struct bt_gatt_discover_params *params);
 
-/* This callback is triggered when remote characteristics are discovered */
-static u8_t char_discover_func(struct bt_conn *conn,
-			       const struct bt_gatt_attr *attr,
-			       struct bt_gatt_discover_params *params);
-
 /* This callback is triggered when remote descriptors are discovered */
-static u8_t desc_discover_func(struct bt_conn *conn,
-			       const struct bt_gatt_attr *attr,
-			       struct bt_gatt_discover_params *params);
+static uint8_t desc_discover_func(struct bt_conn *conn,
+				  const struct bt_gatt_attr *attr,
+				  struct bt_gatt_discover_params *params);
 
 /* This callback is triggered when a BLE disconnection occurs */
-static void disconnected(struct bt_conn *conn, u8_t reason);
+static void disconnected(struct bt_conn *conn, uint8_t reason);
 
 /* This callback is triggered when a BLE connection occurs */
-static void connected(struct bt_conn *conn, u8_t err);
+static void connected(struct bt_conn *conn, uint8_t err);
 
 /* This function is used to discover services in remote device */
-static u8_t find_service(struct bt_conn *conn, struct bt_uuid_16 n_uuid);
+static int find_service(struct bt_conn *conn, struct bt_uuid_16 n_uuid);
 
 /* This function is used to discover characteristics in remote device */
-static u8_t find_char(struct bt_conn *conn, struct bt_uuid_16 n_uuid);
+static int find_char(struct bt_conn *conn, struct bt_uuid_16 n_uuid);
 
 /* This function is used to discover descriptors in remote device */
-static u8_t find_desc(struct bt_conn *conn, struct bt_uuid_16 uuid,
-		      u16_t start_handle);
+static int find_desc(struct bt_conn *conn, struct bt_uuid_16 uuid,
+		     uint16_t start_handle);
 
 static void set_ble_state(enum ble_state state);
 
 static void discover_services_work_callback(struct k_work *work);
 static void discover_failed_handler(struct bt_conn *conn, int err);
 
-static void sensor_aggregator(u8_t sensor, s32_t reading);
+static void sensor_aggregator(uint8_t sensor, int32_t reading);
 
-static void bl654_sensor_adv_handler(const bt_addr_le_t *addr, s8_t rssi,
-				     u8_t type, struct net_buf_simple *ad);
+static void bl654_sensor_adv_handler(const bt_addr_le_t *addr, int8_t rssi,
+				     uint8_t type, struct net_buf_simple *ad);
 
 /******************************************************************************/
 /* Local Data Definitions                                                     */
@@ -173,9 +173,10 @@ void bl654_sensor_initialize(void)
 /******************************************************************************/
 /* Local Function Definitions                                                 */
 /******************************************************************************/
-static void bl654_sensor_adv_handler(const bt_addr_le_t *addr, s8_t rssi,
-				     u8_t type, struct net_buf_simple *ad)
+static void bl654_sensor_adv_handler(const bt_addr_le_t *addr, int8_t rssi,
+				     uint8_t type, struct net_buf_simple *ad)
 {
+	int err;
 	char bt_addr[BT_ADDR_LE_STR_LEN];
 
 	/* Leave this function if already connected */
@@ -184,7 +185,8 @@ static void bl654_sensor_adv_handler(const bt_addr_le_t *addr, s8_t rssi,
 	}
 
 	/* We're only interested in connectable events */
-	if (type != BT_LE_ADV_IND && type != BT_LE_ADV_DIRECT_IND) {
+	if (type != BT_GAP_ADV_TYPE_ADV_IND &&
+	    type != BT_GAP_ADV_TYPE_ADV_DIRECT_IND) {
 		return;
 	}
 
@@ -200,13 +202,14 @@ static void bl654_sensor_adv_handler(const bt_addr_le_t *addr, s8_t rssi,
 
 	/* Connect to device */
 	bt_addr_le_to_str(addr, bt_addr, sizeof(bt_addr));
-	sensor_conn = bt_conn_create_le(addr, BT_LE_CONN_PARAM_DEFAULT);
-	if (sensor_conn != NULL) {
+	err = bt_conn_le_create(addr, BT_CONN_LE_CREATE_CONN,
+				BT_LE_CONN_PARAM_DEFAULT, &sensor_conn);
+	if (err == 0) {
 		LOG_INF("Attempting to connect to remote BLE device %s",
 			log_strdup(bt_addr));
 	} else {
-		LOG_ERR("Failed to connect to remote BLE device %s",
-			log_strdup(bt_addr));
+		LOG_ERR("Failed to connect to remote BLE device %s err [%d]",
+			log_strdup(bt_addr), err);
 		set_ble_state(BT_DEMO_APP_STATE_FINDING_DEVICE);
 	}
 }
@@ -232,11 +235,11 @@ static void discover_failed_handler(struct bt_conn *conn, int err)
 }
 
 /* This callback is triggered when notifications from remote device are received */
-static u8_t notify_func_callback(struct bt_conn *conn,
-				 struct bt_gatt_subscribe_params *params,
-				 const void *data, u16_t length)
+static uint8_t notify_func_callback(struct bt_conn *conn,
+				    struct bt_gatt_subscribe_params *params,
+				    const void *data, uint16_t length)
 {
-	s32_t reading;
+	int32_t reading;
 	if (conn != sensor_conn) {
 		return BT_GATT_ITER_CONTINUE;
 	}
@@ -266,10 +269,10 @@ static u8_t notify_func_callback(struct bt_conn *conn,
 	if (params->value_handle ==
 	    remote.temperature_subscribe_params.value_handle) {
 		/* Temperature is a 16 bit value */
-		s8_t temperature_data[2];
+		int8_t temperature_data[2];
 		memcpy(temperature_data, data, length);
-		reading = (s16_t)((temperature_data[1] << 8 & 0xFF00) +
-				  temperature_data[0]);
+		reading = (int16_t)((temperature_data[1] << 8 & 0xFF00) +
+				    temperature_data[0]);
 		LOG_INF("ESS Temperature value = %d", reading);
 		sensor_aggregator(SENSOR_TYPE_TEMPERATURE, reading);
 	}
@@ -277,7 +280,7 @@ static u8_t notify_func_callback(struct bt_conn *conn,
 	else if (params->value_handle ==
 		 remote.humidity_subscribe_params.value_handle) {
 		/* Humidity is a 16 bit value */
-		u8_t humidity_data[2];
+		uint8_t humidity_data[2];
 		memcpy(humidity_data, data, length);
 		reading = ((humidity_data[1] << 8) & 0xFF00) + humidity_data[0];
 		LOG_INF("ESS Humidity value = %d", reading);
@@ -287,7 +290,7 @@ static u8_t notify_func_callback(struct bt_conn *conn,
 	else if (params->value_handle ==
 		 remote.pressure_subscribe_params.value_handle) {
 		/* Pressure is a 32 bit value */
-		u8_t pressure_data[4];
+		uint8_t pressure_data[4];
 		memcpy(pressure_data, data, length);
 		reading = ((pressure_data[3] << 24) & 0xFF000000) +
 			  ((pressure_data[2] << 16) & 0xFF0000) +
@@ -300,10 +303,10 @@ static u8_t notify_func_callback(struct bt_conn *conn,
 }
 
 /* This function is used to discover descriptors in remote device */
-static u8_t find_desc(struct bt_conn *conn, struct bt_uuid_16 uuid,
-		      u16_t start_handle)
+static int find_desc(struct bt_conn *conn, struct bt_uuid_16 uuid,
+		     uint16_t start_handle)
 {
-	u8_t err;
+	int err;
 
 	/* Update discover parameters before initiating discovery */
 	discover_params.type = BT_GATT_DISCOVER_DESCRIPTOR;
@@ -318,9 +321,9 @@ static u8_t find_desc(struct bt_conn *conn, struct bt_uuid_16 uuid,
 }
 
 /* This function is used to discover characteristics in remote device */
-static u8_t find_char(struct bt_conn *conn, struct bt_uuid_16 n_uuid)
+static int find_char(struct bt_conn *conn, struct bt_uuid_16 n_uuid)
 {
-	u8_t err;
+	int err;
 	if (conn != sensor_conn) {
 		return BT_GATT_ITER_CONTINUE;
 	}
@@ -338,9 +341,9 @@ static u8_t find_char(struct bt_conn *conn, struct bt_uuid_16 n_uuid)
 }
 
 /* This function is used to discover services in remote device */
-static u8_t find_service(struct bt_conn *conn, struct bt_uuid_16 n_uuid)
+static int find_service(struct bt_conn *conn, struct bt_uuid_16 n_uuid)
 {
-	u8_t err;
+	int err;
 
 	/* Update discover parameters before initiating discovery */
 	discover_params.type = BT_GATT_DISCOVER_PRIMARY;
@@ -355,11 +358,11 @@ static u8_t find_service(struct bt_conn *conn, struct bt_uuid_16 n_uuid)
 }
 
 /* This callback is triggered when remote descriptors are discovered */
-static u8_t desc_discover_func(struct bt_conn *conn,
-			       const struct bt_gatt_attr *attr,
-			       struct bt_gatt_discover_params *params)
+static uint8_t desc_discover_func(struct bt_conn *conn,
+				  const struct bt_gatt_attr *attr,
+				  struct bt_gatt_discover_params *params)
 {
-	u8_t err;
+	int err;
 	if (conn != sensor_conn) {
 		return BT_GATT_ITER_CONTINUE;
 	}
@@ -435,11 +438,11 @@ static u8_t desc_discover_func(struct bt_conn *conn,
 }
 
 /* This callback is triggered when remote characteristics are discovered */
-static u8_t char_discover_func(struct bt_conn *conn,
-			       const struct bt_gatt_attr *attr,
-			       struct bt_gatt_discover_params *params)
+static uint8_t char_discover_func(struct bt_conn *conn,
+				  const struct bt_gatt_attr *attr,
+				  struct bt_gatt_discover_params *params)
 {
-	u8_t err;
+	int err;
 	if (conn != sensor_conn) {
 		return BT_GATT_ITER_CONTINUE;
 	}
@@ -486,9 +489,9 @@ static u8_t char_discover_func(struct bt_conn *conn,
 }
 
 /* This callback is triggered when remote services are discovered */
-static u8_t service_discover_func(struct bt_conn *conn,
-				  const struct bt_gatt_attr *attr,
-				  struct bt_gatt_discover_params *params)
+static uint8_t service_discover_func(struct bt_conn *conn,
+				     const struct bt_gatt_attr *attr,
+				     struct bt_gatt_discover_params *params)
 {
 	int err;
 	if (conn != sensor_conn) {
@@ -521,7 +524,7 @@ static u8_t service_discover_func(struct bt_conn *conn,
 }
 
 /* This callback is triggered when a BLE connection occurs */
-static void connected(struct bt_conn *conn, u8_t err)
+static void connected(struct bt_conn *conn, uint8_t err)
 {
 	char addr[BT_ADDR_LE_STR_LEN];
 	if (conn != sensor_conn) {
@@ -556,7 +559,7 @@ fail:
 }
 
 /* This callback is triggered when a BLE disconnection occurs */
-static void disconnected(struct bt_conn *conn, u8_t reason)
+static void disconnected(struct bt_conn *conn, uint8_t reason)
 {
 	char addr[BT_ADDR_LE_STR_LEN];
 	if (conn != sensor_conn) {
@@ -575,7 +578,7 @@ static void disconnected(struct bt_conn *conn, u8_t reason)
 	set_ble_state(BT_DEMO_APP_STATE_FINDING_DEVICE);
 }
 
-static char *get_sensor_state_string(u8_t state)
+static char *get_sensor_state_string(uint8_t state)
 {
 	/* clang-format off */
 	switch (state) {
@@ -616,12 +619,12 @@ static void set_ble_state(enum ble_state state)
 	}
 }
 
-static void sensor_aggregator(u8_t sensor, s32_t reading)
+static void sensor_aggregator(uint8_t sensor, int32_t reading)
 {
-	static u64_t bmeEventTime = 0;
+	static int64_t bmeEventTime = 0;
 	/* On init send first data immediately. */
-	static u32_t delta =
-		K_MSEC(CONFIG_BL654_SENSOR_SEND_TO_AWS_RATE_SECONDS);
+	static int64_t delta =
+		(CONFIG_BL654_SENSOR_SEND_TO_AWS_RATE_SECONDS * MSEC_PER_SEC);
 
 	if (sensor == SENSOR_TYPE_TEMPERATURE) {
 		/* Divide by 100 to get xx.xxC format */
@@ -637,8 +640,9 @@ static void sensor_aggregator(u8_t sensor, s32_t reading)
 		updated_pressure = true;
 	}
 
-	delta += k_uptime_delta_32(&bmeEventTime);
-	if (delta < K_MSEC(CONFIG_BL654_SENSOR_SEND_TO_AWS_RATE_SECONDS)) {
+	delta += k_uptime_delta(&bmeEventTime);
+	if (delta <
+	    (CONFIG_BL654_SENSOR_SEND_TO_AWS_RATE_SECONDS * MSEC_PER_SEC)) {
 		return;
 	}
 

@@ -49,9 +49,9 @@ void ShadowBuilder_Finalize(JsonMsg_t *pJsonMsg);
  * @brief Adds a JSON pair "key":<value> to the message being built.
  */
 void ShadowBuilder_AddUint32(JsonMsg_t *pJsonMsg, const char *restrict pKey,
-			     u32_t Value);
+			     uint32_t Value);
 void ShadowBuilder_AddSigned32(JsonMsg_t *pJsonMsg, const char *restrict pKey,
-			       s32_t Value);
+			       int32_t Value);
 
 /**
  * @brief Adds a JSON pair to the message being built.  "<pKey>" : pValue
@@ -71,7 +71,7 @@ void ShadowBuilder_AddPair(JsonMsg_t *pJsonMsg, const char *restrict pKey,
  * @param pKey name of key
  */
 void ShadowBuilder_AddVersion(JsonMsg_t *pJsonMsg, const char *restrict pKey,
-			      u8_t Major, u8_t Minor, u8_t Build);
+			      uint8_t Major, uint8_t Minor, uint8_t Build);
 
 /**
  * @brief Adds pair with true, false, or null
@@ -99,7 +99,7 @@ void ShadowBuilder_EndArray(JsonMsg_t *pJsonMsg);
  */
 void ShadowBuilder_AddSensorTableArrayEntry(JsonMsg_t *pJsonMsg,
 					    const char *restrict pAddrStr,
-					    u32_t Epoch, bool Whitelisted);
+					    uint32_t Epoch, bool Whitelisted);
 
 /**
  * @brief Adds "pKey": {

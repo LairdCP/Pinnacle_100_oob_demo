@@ -71,9 +71,9 @@ LOG_MODULE_REGISTER(sensor_table);
 	 (CONFIG_SENSOR_LOG_MAX_SIZE * SENSOR_LOG_ENTRY_JSON_STR_SIZE))
 CHECK_BUFFER_SIZE(FWK_BUFFER_MSG_SIZE(JsonMsg_t, SHADOW_BUF_SIZE));
 
-BUILD_ASSERT_MSG(((sizeof(SENSOR_SUBSCRIPTION_TOPIC_FMT_STR) +
-		   SENSOR_ADDR_STR_LEN) < CONFIG_AWS_TOPIC_MAX_SIZE),
-		 "Topic too small");
+BUILD_ASSERT(((sizeof(SENSOR_SUBSCRIPTION_TOPIC_FMT_STR) +
+	       SENSOR_ADDR_STR_LEN) < CONFIG_AWS_TOPIC_MAX_SIZE),
+	     "Topic too small");
 
 #define MAX_KEY_STR_LEN 64
 #define MANGLED_NAME_MAX_STR_LEN                                               \
@@ -95,23 +95,23 @@ typedef struct SensorEntry {
 	char addrString[SENSOR_ADDR_STR_SIZE];
 	Bt510AdEvent_t ad;
 	Bt510Rsp_t rsp;
-	s8_t rssi;
-	u8_t lastRecordType;
-	u32_t rxEpoch;
+	int8_t rssi;
+	uint8_t lastRecordType;
+	uint32_t rxEpoch;
 	bool whitelisted;
 	bool subscribed;
 	bool getAcceptedSubscribed;
 	bool shadowInitReceived;
-	u64_t subscriptionDispatchTime;
-	u32_t ttl;
+	uint64_t subscriptionDispatchTime;
+	uint32_t ttl;
 	void *pCmd;
 	void *pSecondCmd;
 	bool configBusy;
-	u32_t configBusyVersion;
+	uint32_t configBusyVersion;
 	bool dumpBusy;
 	bool firstDumpComplete;
-	u32_t adCount;
-	u16_t lastFlags;
+	uint32_t adCount;
+	uint16_t lastFlags;
 	SensorLog_t *pLog;
 } SensorEntry_t;
 
@@ -123,7 +123,7 @@ typedef struct SensorEntry {
 static size_t tableCount;
 static SensorEntry_t sensorTable[CONFIG_SENSOR_TABLE_SIZE];
 static char queryCmd[CONFIG_SENSOR_QUERY_CMD_MAX_SIZE];
-static u64_t ttlUptime;
+static uint64_t ttlUptime;
 static struct lte_status *pLte;
 static bool allowGatewayShadowGeneration;
 
@@ -139,18 +139,19 @@ static bool FindBt510ScanResponse(AdHandle_t *pHandle);
 
 static size_t AddByScanResponse(const bt_addr_le_t *pAddr,
 				AdHandle_t *pNameHandle, AdHandle_t *pRspHandle,
-				s8_t Rssi);
+				int8_t Rssi);
 static size_t AddByAddress(const bt_addr_t *pAddr);
-static void AddEntry(SensorEntry_t *pEntry, const bt_addr_t *pAddr, s8_t Rssi);
+static void AddEntry(SensorEntry_t *pEntry, const bt_addr_t *pAddr,
+		     int8_t Rssi);
 static size_t FindTableIndex(const bt_addr_le_t *pAddr);
 static size_t FindFirstFree(void);
-static void AdEventHandler(AdHandle_t *pHandle, s8_t Rssi, u32_t Index);
+static void AdEventHandler(AdHandle_t *pHandle, int8_t Rssi, uint32_t Index);
 
 static bool AddrMatch(const void *p, size_t Index);
 static bool AddrStringMatch(const char *str, size_t Index);
 static bool NameMatch(const char *p, size_t Index);
 static bool RspMatch(const void *p, size_t Index);
-static bool NewEvent(u16_t Id, size_t Index);
+static bool NewEvent(uint16_t Id, size_t Index);
 
 static void SensorAddrToString(SensorEntry_t *pEntry);
 static bt_addr_t BtAddrStringToStruct(const char *pAddrString);
@@ -168,17 +169,17 @@ static void ShadowSpecialHandler(JsonMsg_t *pMsg, SensorEntry_t *pEntry);
 static void GatewayShadowMaker(bool WhitelistProcessed);
 
 static char *MangleKey(const char *pKey, const char *pName);
-static u32_t WhitelistByAddress(const char *pAddrString, bool NextState);
+static uint32_t WhitelistByAddress(const char *pAddrString, bool NextState);
 static void Whitelist(SensorEntry_t *pEntry, bool NextState);
 
-static s32_t GetTemperature(SensorEntry_t *pEntry);
-static u32_t GetBattery(SensorEntry_t *pEntry);
+static int32_t GetTemperature(SensorEntry_t *pEntry);
+static uint32_t GetBattery(SensorEntry_t *pEntry);
 
 static void ConnectRequestHandler(size_t Index);
 static void CreateDumpRequest(SensorEntry_t *pEntry);
 static void CreateConfigRequest(SensorEntry_t *pEntry);
 
-static u32_t GetFlag(u16_t Value, u32_t Mask, u8_t Position);
+static uint32_t GetFlag(uint16_t Value, uint32_t Mask, uint8_t Position);
 
 static void PublishToGetAccepted(SensorEntry_t *pEntry);
 
@@ -211,8 +212,8 @@ bool SensorTable_MatchBt510(struct net_buf_simple *ad)
 /* If a new event has occurred then generate a message to send sensor event
  * data to AWS.
  */
-void SensorTable_AdvertisementHandler(const bt_addr_le_t *pAddr, s8_t rssi,
-				      u8_t type, Ad_t *pAd)
+void SensorTable_AdvertisementHandler(const bt_addr_le_t *pAddr, int8_t rssi,
+				      uint8_t type, Ad_t *pAd)
 
 {
 	ARG_UNUSED(type);
@@ -256,14 +257,15 @@ void SensorTable_AdvertisementHandler(const bt_addr_le_t *pAddr, s8_t rssi,
 	if (tableIndex < CONFIG_SENSOR_TABLE_SIZE) {
 		ConnectRequestHandler(tableIndex);
 		sensorTable[tableIndex].adCount += 1;
-		VERBOSE_AD_LOG("'%s' %u", sensorTable[tableIndex].name,
+		VERBOSE_AD_LOG("'%s' %u",
+			       log_strdup(sensorTable[tableIndex].name),
 			       sensorTable[tableIndex].adCount);
 	}
 }
 
 void SensorTable_ProcessWhitelistRequest(SensorWhitelistMsg_t *pMsg)
 {
-	u32_t changed = 0;
+	uint32_t changed = 0;
 	size_t i;
 	for (i = 0; i < pMsg->sensorCount; i++) {
 		changed += WhitelistByAddress(pMsg->sensors[i].addrString,
@@ -305,7 +307,8 @@ DispatchResult_t SensorTable_AddConfigRequest(SensorCmdMsg_t *pMsg)
 			if (!pMsg->dumpRequest &&
 			    (p->configBusyVersion != pMsg->configVersion)) {
 				LOG_WRN("(Config Busy) Saving config for sensor '%s' Version: %u",
-					p->name, pMsg->configVersion);
+					log_strdup(p->name),
+					pMsg->configVersion);
 				/* Delete any oustanding command. */
 				if (p->pSecondCmd != NULL) {
 					BufferPool_Free(p->pSecondCmd);
@@ -315,10 +318,12 @@ DispatchResult_t SensorTable_AddConfigRequest(SensorCmdMsg_t *pMsg)
 			}
 		} else {
 			if (pMsg->dumpRequest) {
-				LOG_WRN("State request for '%s'", p->name);
+				LOG_WRN("State request for '%s'",
+					log_strdup(p->name));
 			} else {
 				LOG_WRN("New config for sensor '%s' Version: %u",
-					p->name, pMsg->configVersion);
+					log_strdup(p->name),
+					pMsg->configVersion);
 			}
 			p->pCmd = pMsg;
 			return DISPATCH_DO_NOT_FREE;
@@ -553,7 +558,7 @@ void SensorTable_CreateShadowFromDumpResponse(FwkBufMsg_t *pRsp,
 
 void SensorTable_TimeToLiveHandler(void)
 {
-	u64_t deltaS = k_uptime_delta(&ttlUptime) / K_SECONDS(1);
+	int64_t deltaS = k_uptime_delta(&ttlUptime) / (1 * MSEC_PER_SEC);
 	size_t i;
 	for (i = 0; i < CONFIG_SENSOR_TABLE_SIZE; i++) {
 		SensorEntry_t *p = &sensorTable[i];
@@ -609,7 +614,7 @@ static void FreeEntryBuffers(SensorEntry_t *pEntry)
 	}
 }
 
-static void AdEventHandler(AdHandle_t *pHandle, s8_t Rssi, u32_t Index)
+static void AdEventHandler(AdHandle_t *pHandle, int8_t Rssi, uint32_t Index)
 {
 	sensorTable[Index].ttl = CONFIG_SENSOR_TTL_SECONDS;
 
@@ -617,8 +622,8 @@ static void AdEventHandler(AdHandle_t *pHandle, s8_t Rssi, u32_t Index)
 	if (NewEvent(p->id, Index)) {
 		sensorTable[Index].validAd = true;
 		LOG_DBG("New Event for [%u] '%s' (%s) RSSI: %d", Index,
-			sensorTable[Index].name, sensorTable[Index].addrString,
-			Rssi);
+			log_strdup(sensorTable[Index].name),
+			log_strdup(sensorTable[Index].addrString), Rssi);
 		sensorTable[Index].lastRecordType =
 			sensorTable[Index].ad.recordType;
 		memcpy(&sensorTable[Index].ad, pHandle->pPayload,
@@ -664,7 +669,7 @@ static bool FindBt510ScanResponse(AdHandle_t *pHandle)
 
 static size_t AddByScanResponse(const bt_addr_le_t *pAddr,
 				AdHandle_t *pNameHandle, AdHandle_t *pRspHandle,
-				s8_t Rssi)
+				int8_t Rssi)
 {
 	if (pNameHandle->pPayload == NULL) {
 		return CONFIG_SENSOR_TABLE_SIZE;
@@ -726,7 +731,7 @@ static size_t AddByAddress(const bt_addr_t *pAddr)
 	return i;
 }
 
-static void AddEntry(SensorEntry_t *pEntry, const bt_addr_t *pAddr, s8_t Rssi)
+static void AddEntry(SensorEntry_t *pEntry, const bt_addr_t *pAddr, int8_t Rssi)
 {
 	tableCount += 1;
 	pEntry->inUse = true;
@@ -738,8 +743,9 @@ static void AddEntry(SensorEntry_t *pEntry, const bt_addr_t *pAddr, s8_t Rssi)
 	 * because the two formats are the same.
 	 */
 	SensorAddrToString(pEntry);
-	LOG_INF("Added BT510 sensor %s '%s' RSSI: %d", pEntry->addrString,
-		pEntry->name, pEntry->rssi);
+	LOG_INF("Added BT510 sensor %s '%s' RSSI: %d",
+		log_strdup(pEntry->addrString), log_strdup(pEntry->name),
+		pEntry->rssi);
 	GatewayShadowMaker(false);
 }
 
@@ -791,7 +797,7 @@ static bool RspMatch(const void *p, size_t Index)
 	return (memcmp(p, &sensorTable[Index].rsp, sizeof(Bt510Rsp_t)) == 0);
 }
 
-static bool NewEvent(u16_t Id, size_t Index)
+static bool NewEvent(uint16_t Id, size_t Index)
 {
 	if (!sensorTable[Index].validAd) {
 		return true;
@@ -934,19 +940,19 @@ static void ShadowRspHandler(JsonMsg_t *pMsg, SensorEntry_t *pEntry)
  * Get temperature from advertisement (assumes event contains temperature).
  * retval temperature in hundredths of degree C
  */
-static s32_t GetTemperature(SensorEntry_t *pEntry)
+static int32_t GetTemperature(SensorEntry_t *pEntry)
 {
-	return (s32_t)((s16_t)pEntry->ad.data);
+	return (int32_t)((int16_t)pEntry->ad.data);
 }
 
-static u32_t GetBattery(SensorEntry_t *pEntry)
+static uint32_t GetBattery(SensorEntry_t *pEntry)
 {
-	return (u32_t)((u16_t)pEntry->ad.data);
+	return (uint32_t)((uint16_t)pEntry->ad.data);
 }
 
 static void ShadowTemperatureHandler(JsonMsg_t *pMsg, SensorEntry_t *pEntry)
 {
-	s32_t temperature = GetTemperature(pEntry);
+	int32_t temperature = GetTemperature(pEntry);
 	if (CONFIG_USE_SINGLE_AWS_TOPIC) {
 		/* The desired format is degrees when publishing to a single topic
 		 * because that is how the BL654 Sensor data is formatted. */
@@ -981,7 +987,7 @@ static void ShadowEventHandler(JsonMsg_t *pMsg, SensorEntry_t *pEntry)
 	case SENSOR_EVENT_BATTERY_GOOD:
 	case SENSOR_EVENT_BATTERY_BAD:
 		ShadowBuilder_AddUint32(pMsg, "batteryVoltageMv",
-					(u32_t)pEntry->ad.data);
+					(uint32_t)pEntry->ad.data);
 		break;
 	case SENSOR_EVENT_RESET:
 		ShadowBuilder_AddPair(
@@ -1002,7 +1008,7 @@ static void ShadowEventHandler(JsonMsg_t *pMsg, SensorEntry_t *pEntry)
  */
 static void ShadowIg60EventHandler(JsonMsg_t *pMsg, SensorEntry_t *pEntry)
 {
-	s32_t t = GetTemperature(pEntry);
+	int32_t t = GetTemperature(pEntry);
 	switch (pEntry->ad.recordType) {
 	case SENSOR_EVENT_ALARM_HIGH_TEMP_1:
 		ShadowBuilder_AddSigned32(
@@ -1055,7 +1061,7 @@ static void ShadowIg60EventHandler(JsonMsg_t *pMsg, SensorEntry_t *pEntry)
 
 static void ShadowFlagHandler(JsonMsg_t *pMsg, SensorEntry_t *pEntry)
 {
-	u16_t flags = pEntry->ad.flags;
+	uint16_t flags = pEntry->ad.flags;
 	if (flags != pEntry->lastFlags) {
 		ShadowBuilder_AddUint32(pMsg, "rtcSet",
 					GetFlag(flags, FLAG_TIME_WAS_SET));
@@ -1088,7 +1094,7 @@ static void ShadowLogHandler(JsonMsg_t *pMsg, SensorEntry_t *pEntry)
 	SensorLogEvent_t event = { .epoch = pEntry->ad.epoch,
 				   .data = pEntry->ad.data,
 				   .recordType = pEntry->ad.recordType,
-				   .idLsb = (u8_t)pEntry->ad.id };
+				   .idLsb = (uint8_t)pEntry->ad.id };
 
 	SensorLog_Add(pEntry->pLog, &event);
 
@@ -1165,7 +1171,7 @@ static void GatewayShadowMaker(bool WhitelistProcessed)
 }
 
 /* Returns 1 if the value was changed from its current state. */
-static u32_t WhitelistByAddress(const char *pAddrString, bool NextState)
+static uint32_t WhitelistByAddress(const char *pAddrString, bool NextState)
 {
 	size_t i;
 	for (i = 0; i < CONFIG_SENSOR_TABLE_SIZE; i++) {
@@ -1201,7 +1207,8 @@ static void Whitelist(SensorEntry_t *pEntry, bool NextState)
 		pEntry->getAcceptedSubscribed = false;
 		pEntry->subscriptionDispatchTime =
 			k_uptime_get() +
-			K_SECONDS(CONFIG_SENSOR_SUBSCRIPTION_DELAY_SECONDS);
+			(CONFIG_SENSOR_SUBSCRIPTION_DELAY_SECONDS *
+			 MSEC_PER_SEC);
 		if (pEntry->pLog == NULL) {
 			pEntry->pLog =
 				SensorLog_Allocate(CONFIG_SENSOR_LOG_MAX_SIZE);
@@ -1312,12 +1319,11 @@ static bt_addr_t BtAddrStringToStruct(const char *pAddrString)
 	FRAMEWORK_DEBUG_ASSERT(p == str);
 	return result;
 }
-BUILD_ASSERT_MSG((SENSOR_ADDR_STR_LEN / 2) == sizeof(bt_addr_t),
-		 "Size Mismatch");
+BUILD_ASSERT((SENSOR_ADDR_STR_LEN / 2) == sizeof(bt_addr_t), "Size Mismatch");
 
-static u32_t GetFlag(u16_t Value, u32_t Mask, u8_t Position)
+static uint32_t GetFlag(uint16_t Value, uint32_t Mask, uint8_t Position)
 {
-	u32_t v = (u32_t)Value & (Mask << Position);
+	uint32_t v = (uint32_t)Value & (Mask << Position);
 	return (v >> Position);
 }
 

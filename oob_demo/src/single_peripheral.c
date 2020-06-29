@@ -22,8 +22,8 @@ LOG_MODULE_REGISTER(single_peripheral);
 /******************************************************************************/
 /* Local Function Prototypes                                                  */
 /******************************************************************************/
-static void sp_disconnected(struct bt_conn *conn, u8_t reason);
-static void sp_connected(struct bt_conn *conn, u8_t err);
+static void sp_disconnected(struct bt_conn *conn, uint8_t reason);
+static void sp_connected(struct bt_conn *conn, uint8_t err);
 static int start_advertising(void);
 
 /******************************************************************************/
@@ -61,7 +61,7 @@ struct bt_conn *single_peripheral_get_conn(void)
 /******************************************************************************/
 /* Local Function Definitions                                                 */
 /******************************************************************************/
-static void sp_connected(struct bt_conn *conn, u8_t err)
+static void sp_connected(struct bt_conn *conn, uint8_t err)
 {
 	/* Did a central connect to us? */
 	if (!lbt_slave_role(conn)) {
@@ -85,7 +85,7 @@ static void sp_connected(struct bt_conn *conn, u8_t err)
 	}
 }
 
-static void sp_disconnected(struct bt_conn *conn, u8_t reason)
+static void sp_disconnected(struct bt_conn *conn, uint8_t reason)
 {
 	if (!lbt_slave_role(conn)) {
 		return;

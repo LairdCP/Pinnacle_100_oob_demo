@@ -35,13 +35,13 @@ extern "C" {
  * The output string will be at least 2 bytes.
  * @note Max output size is 11 bytes.
  */
-u8_t ToString_Dec(char *pString, u32_t Value);
+uint8_t ToString_Dec(char *pString, uint32_t Value);
 
 /**
  * @brief Converts Value into a hexadecimal string.
  * Output is 9 bytes.  NUL included.
  */
-void ToString_Hex32(char *pString, u32_t Value);
+void ToString_Hex32(char *pString, uint32_t Value);
 
 /**
  * @brief Converts Value into a hexadecimal string.
@@ -53,7 +53,7 @@ void ToString_Hex16(char *pString, uint16_t Value);
  * @brief Converts Value into a hexadecimal string.
  * Output is 3 bytes. NUL included.
  */
-void ToString_Hex8(char *pString, u8_t Value);
+void ToString_Hex8(char *pString, uint8_t Value);
 
 #ifdef __cplusplus
 }

@@ -6,6 +6,7 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
+#ifdef CONFIG_LAIRDCONNECTIVITY_BLR
 
 #include <logging/log.h>
 #define LOG_LEVEL LOG_LEVEL_INF
@@ -55,12 +56,12 @@ void bootloader_fetch(void)
 
 	if (bootloader_present == true) {
 		/* Query values from bootloader */
-		u32_t status = 0;
-		u8_t value8 = 0;
-		u16_t value16 = 0;
-		u32_t value32 = 0;
-		u8_t date[sizeof(__DATE__)];
-		u8_t buffer[MAX_DATA_SIZE];
+		uint32_t status = 0;
+		uint8_t value8 = 0;
+		uint16_t value16 = 0;
+		uint32_t value32 = 0;
+		uint8_t date[sizeof(__DATE__)];
+		uint8_t buffer[MAX_DATA_SIZE];
 		time_t timestamp;
 
 #ifdef BLR_SKIP_CHECKSUM_VERIFY
@@ -161,7 +162,7 @@ void bootloader_fetch(void)
 		}
 
 		status = BlrPubQuery(BOOTLOADER_STORAGE_INDEX_SECTION_VERSION,
-				     2, 0, (u8_t *)&value16, sizeof(value16),
+				     2, 0, (uint8_t *)&value16, sizeof(value16),
 				     NULL, NULL, NULL);
 		if (status == BOOTLOADER_STORAGE_CODE_SUCCESS) {
 			ubs_set_bootloader_version(value16);
@@ -169,7 +170,7 @@ void bootloader_fetch(void)
 
 		status = BlrPubQuery(
 			BOOTLOADER_STORAGE_INDEX_BOOTLOADER_UPDATE_LAST_FAIL_VERSION,
-			0, 0, (u8_t *)&value16, sizeof(value16), NULL, NULL,
+			0, 0, (uint8_t *)&value16, sizeof(value16), NULL, NULL,
 			NULL);
 		if (status == BOOTLOADER_STORAGE_CODE_SUCCESS) {
 			ubs_set_bootloader_update_last_fail_version(value16);
@@ -177,27 +178,27 @@ void bootloader_fetch(void)
 
 		status = BlrPubQuery(
 			BOOTLOADER_STORAGE_INDEX_BOOTLOADER_UPDATES_APPLIED, 0,
-			0, (u8_t *)&value16, sizeof(value16), NULL, NULL, NULL);
+			0, (uint8_t *)&value16, sizeof(value16), NULL, NULL, NULL);
 		if (status == BOOTLOADER_STORAGE_CODE_SUCCESS) {
 			ubs_set_bootloader_updates_applied(value16);
 		}
 		status = BlrPubQuery(
 			BOOTLOADER_STORAGE_INDEX_SECTION_UPDATES_APPLIED, 0, 0,
-			(u8_t *)&value16, sizeof(value16), NULL, NULL, NULL);
+			(uint8_t *)&value16, sizeof(value16), NULL, NULL, NULL);
 		if (status == BOOTLOADER_STORAGE_CODE_SUCCESS) {
 			ubs_set_bootloader_section_updates_applied(value16);
 		}
 
 		status = BlrPubQuery(
 			BOOTLOADER_STORAGE_INDEX_MODEM_UPDATES_APPLIED, 0, 0,
-			(u8_t *)&value16, sizeof(value16), NULL, NULL, NULL);
+			(uint8_t *)&value16, sizeof(value16), NULL, NULL, NULL);
 		if (status == BOOTLOADER_STORAGE_CODE_SUCCESS) {
 			ubs_set_bootloader_modem_updates_applied(value16);
 		}
 
 		status = BlrPubQuery(
 			BOOTLOADER_STORAGE_INDEX_MODEM_UPDATE_LAST_FAIL_VERSION,
-			0, 0, (u8_t *)&value16, sizeof(value16), NULL, NULL,
+			0, 0, (uint8_t *)&value16, sizeof(value16), NULL, NULL,
 			NULL);
 		if (status == BOOTLOADER_STORAGE_CODE_SUCCESS) {
 			ubs_set_bootloader_modem_update_last_fail_version(
@@ -206,14 +207,14 @@ void bootloader_fetch(void)
 
 		status = BlrPubQuery(
 			BOOTLOADER_STORAGE_INDEX_COMPRESSION_UPDATE_LAST_FAIL_CODE,
-			0, 0, (u8_t *)&value16, sizeof(value16), NULL, NULL,
+			0, 0, (uint8_t *)&value16, sizeof(value16), NULL, NULL,
 			NULL);
 		if (status == BOOTLOADER_STORAGE_CODE_SUCCESS) {
 			ubs_set_bootloader_compression_last_fail_code(value16);
 		}
 
 		status = BlrPubQuery(BOOTLOADER_STORAGE_INDEX_QSPI_HEADER_CRC,
-				     0, 0, (u8_t *)&value32, sizeof(value32),
+				     0, 0, (uint8_t *)&value32, sizeof(value32),
 				     NULL, NULL, NULL);
 		if (status == BOOTLOADER_STORAGE_CODE_SUCCESS) {
 			ubs_set_QSPI_crc(value32);
@@ -236,7 +237,7 @@ void bootloader_fetch(void)
 		memset(&timestamp, 0, sizeof(timestamp));
 
 		status = BlrPubQuery(BOOTLOADER_STORAGE_INDEX_BUILD_DATE, 0, 0,
-				     (u8_t *)&timestamp, TIMESTAMP_FIELD_SIZE,
+				     (uint8_t *)&timestamp, TIMESTAMP_FIELD_SIZE,
 				     NULL, NULL, NULL);
 		if (status == BOOTLOADER_STORAGE_CODE_SUCCESS &&
 		    timestamp != TIMESTAMP_INVALID_MIN &&
@@ -249,8 +250,10 @@ void bootloader_fetch(void)
 		}
 	} else {
 		/* Bootloader not present or check failure */
-		u8_t value8 = BlrPubGetInfo(NULL, NULL, NULL);
+		uint8_t value8 = BlrPubGetInfo(NULL, NULL, NULL);
 
 		ubs_set_error_code(value8);
 	}
 }
+
+#endif /* CONFIG_LAIRDCONNECTIVITY_BLR */
