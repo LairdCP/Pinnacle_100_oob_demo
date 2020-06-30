@@ -33,6 +33,10 @@ config BL654_SENSOR_NAME
 
 endmenu
 
+config CLOUD_QUEUE_SIZE
+    int "The size of queue for sending messages to AWS or LWM2M client"
+    default 32
+
 config AWS_DATA_SEND_LED_OFF_DURATION_MILLISECONDS
     int "The amount of time to turn off the green LED when data is sent"
     default 30

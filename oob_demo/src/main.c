@@ -98,7 +98,8 @@ struct lte_status *lteInfo;
 
 static FwkMsgReceiver_t awsMsgReceiver;
 
-K_MSGQ_DEFINE(awsQ, FWK_QUEUE_ENTRY_SIZE, 16, FWK_QUEUE_ALIGNMENT);
+K_MSGQ_DEFINE(awsQ, FWK_QUEUE_ENTRY_SIZE, CONFIG_CLOUD_QUEUE_SIZE,
+	      FWK_QUEUE_ALIGNMENT);
 
 static struct k_timer awsKeepAliveTimer;
 
@@ -466,7 +467,7 @@ static void appStateAwsInitShadow(void)
 	}
 
 	if (rc != 0) {
-		LOG_ERR("%d", rc);
+		LOG_ERR("Could not publish shadow (%d)", rc);
 		appSetNextState(appStateAwsDisconnect);
 	} else {
 		initShadow = false;
