@@ -477,6 +477,7 @@ static void appStateAwsInitShadow(void)
 	if (rc != 0) {
 		LOG_ERR("Could not publish shadow (%d)", rc);
 		appSetNextState(appStateAwsDisconnect);
+		k_sleep(WAIT_TIME_BEFORE_RETRY_TICKS);
 	} else {
 		initShadow = false;
 		appSetNextState(appStateAwsSendSensorData);

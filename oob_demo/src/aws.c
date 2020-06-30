@@ -313,18 +313,27 @@ int awsGetAcceptedUnsub(void)
 int awsPublishShadowPersistentData()
 {
 	int rc = -ENOMEM;
-	size_t buf_len;
+	ssize_t buf_len;
 
 	buf_len = json_calc_encoded_len(shadow_descr, ARRAY_SIZE(shadow_descr),
 					&shadow_persistent_data);
+	if (buf_len < 0) {
+		return buf_len;
+	}
+
+	/* account for null char */
+	buf_len += 1;
+
 	char *msg = k_calloc(buf_len, sizeof(char));
 	if (msg == NULL) {
+		AWS_LOG_ERR("k_calloc failed");
 		return rc;
 	}
 
 	rc = json_obj_encode_buf(shadow_descr, ARRAY_SIZE(shadow_descr),
 				 &shadow_persistent_data, msg, buf_len);
 	if (rc < 0) {
+		AWS_LOG_ERR("JSON encode failed");
 		goto done;
 	}
 
@@ -332,12 +341,14 @@ int awsPublishShadowPersistentData()
 	/* Clear the shadow and start fresh */
 	rc = awsSendData(SHADOW_STATE_NULL, GATEWAY_TOPIC);
 	if (rc < 0) {
+		AWS_LOG_ERR("Clear shadow failed");
 		goto done;
 	}
 #endif
 
 	rc = awsSendData(msg, GATEWAY_TOPIC);
 	if (rc < 0) {
+		AWS_LOG_ERR("Update persistent shadow data failed");
 		goto done;
 	}
 
