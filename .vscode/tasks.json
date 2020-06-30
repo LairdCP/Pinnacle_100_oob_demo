@@ -6,7 +6,10 @@
     "options": {
       "shell": {
         "executable": "cmd.exe",
-        "args": ["/d", "/c"]
+        "args": [
+          "/d",
+          "/c"
+        ]
       }
     }
   },
@@ -90,6 +93,69 @@
       "windows": {
         "command": "west build -d build ${workspaceRoot}\\oob_demo --target ram_report > ${workspaceRoot}\\build\\ram_report"
       },
+      "problemMatcher": []
+    },
+    {
+      "label": "build-with-mcumgr",
+      "type": "shell",
+      "command": "west build -b pinnacle_100_dvk -d ${workspaceRoot}/build ${workspaceRoot}/oob_demo -- -DCONF_FILE=\"${workspaceRoot}/oob_demo/prj.conf ${workspaceRoot}/../modules/zephyr_lib/mcumgr_wrapper/config/overlay-qspi-bt.conf ${workspaceRoot}/../modules/zephyr_lib/mcumgr_wrapper/config/overlay-lfs.conf\"",
+      "windows": {
+        "command": "west build -b pinnacle_100_dvk -d ${workspaceRoot}\\build ${workspaceRoot}\\oob_demo -- -DCONF_FILE=\"${workspaceRoot}\\oob_demo\\prj.conf ${workspaceRoot}\\..\\modules\\zephyr_lib\\mcumgr_wrapper\\config\\overlay-qspi-bt.conf ${workspaceRoot}\\..\\modules\\zephyr_lib\\mcumgr_wrapper\\config\\overlay-lfs.conf\""
+      },
+      "problemMatcher": {
+        "base": "$gcc",
+        "fileLocation": "absolute"
+      }
+    },
+    {
+      "label": "build-mcuboot",
+      "type": "shell",
+      "command": "west build -b pinnacle_100_dvk -d ${workspaceRoot}/build_mcuboot ${workspaceRoot}/../bootloader/mcuboot/boot/zephyr -- -DCONF_FILE=\"${workspaceRoot}/../modules/zephyr_lib/mcuboot_config/mcuboot-qspi.conf ${workspaceRoot}/../modules/zephyr_lib/mcuboot_config/overlay-disable-hl7800-modem.conf\"",
+      "windows": {
+        "command": "west build -b pinnacle_100_dvk -d ${workspaceRoot}\\build_mcuboot ${workspaceRoot}\\..\\bootloader\\mcuboot\\boot\\zephyr -- -DCONF_FILE=\"${workspaceRoot}\\..\\modules\\zephyr_lib\\mcuboot_config\\mcuboot-qspi.conf ${workspaceRoot}\\..\\modules\\zephyr_lib\\mcuboot_config\\overlay-disable-hl7800-modem.conf\""
+      },
+      "problemMatcher": {
+        "base": "$gcc",
+        "fileLocation": "absolute"
+      }
+    },
+    {
+      "label": "flash mcuboot",
+      "type": "shell",
+      "command": "west flash --skip-rebuild -d build_mcuboot",
+      "windows": {
+        "command": "west flash --skip-rebuild -d ${workspaceRoot}\\build_mcuboot"
+      },
+      "problemMatcher": []
+    },
+    // add version to signing
+    {
+      "label": "sign",
+      "type": "shell",
+      "command": "west sign -d ${workspaceRoot}/build -t imgtool -- --key ${workspaceRoot}/../bootloader/mcuboot/root-rsa-2048.pem",
+      "windows": {
+        "command": "west sign -d ${workspaceRoot}\\build -t imgtool -- --key ${workspaceRoot}\\..\\bootloader\\mcuboot\\root-rsa-2048.pem"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "flash signed",
+      "type": "shell",
+      "command": "west flash --skip-rebuild -d ${workspaceRoot}/build_mcuboot --hex-file ${workspaceRoot}/build/zephyr/zephyr.signed.hex",
+      "windows": {
+        "command": "west flash --skip-rebuild -d ${workspaceRoot}\\build --hex-file ${workspaceRoot}\\build\\zephyr\\zephyr.signed.hex"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "build sign flash",
+      "type": "shell",
+      "dependsOrder": "sequence",
+      "dependsOn": [
+        "build-with-mcumgr",
+        "sign",
+        "flash signed"
+      ],
       "problemMatcher": []
     }
   ]

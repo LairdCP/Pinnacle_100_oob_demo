@@ -58,6 +58,10 @@ LOG_MODULE_REGISTER(oob_main);
 #include "ble_lwm2m_service.h"
 #endif
 
+#ifdef CONFIG_MCUMGR
+#include "mcumgr_wrapper.h"
+#endif
+
 /******************************************************************************/
 /* Local Constant, Macro and Type Definitions                                 */
 /******************************************************************************/
@@ -230,6 +234,10 @@ void main(void)
 	printk("\n!!!!!!!! App is ready! !!!!!!!!\n");
 
 	appSetNextState(appStateStartup);
+
+#ifdef CONFIG_MCUMGR
+	mcumgr_wrapper_register_subsystems();
+#endif
 
 #if CONFIG_PRINT_THREAD_LIST
 	print_thread_list();
