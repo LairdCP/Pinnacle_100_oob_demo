@@ -758,78 +758,6 @@ void power_measurement_callback(uint8_t integer, uint8_t decimal)
 /* Shell                                                                      */
 /******************************************************************************/
 #ifdef CONFIG_SHELL
-static int shellSetCert(enum CREDENTIAL_TYPE type, uint8_t *cred)
-{
-	int rc;
-	int certSize;
-	int expSize = 0;
-	char *newCred = NULL;
-
-	if (!appReady) {
-		printk("App is not ready\n");
-		return APP_ERR_NOT_READY;
-	}
-
-	if (!allowCommissioning) {
-		printk("Not ready for commissioning, decommission device first\n");
-		return APP_ERR_COMMISSION_DISALLOWED;
-	}
-
-	certSize = strlen(cred);
-
-	if (type == CREDENTIAL_CERT) {
-		expSize = AWS_CLIENT_CERT_MAX_LENGTH;
-		newCred = (char *)aws_svc_get_client_cert();
-	} else if (type == CREDENTIAL_KEY) {
-		expSize = AWS_CLIENT_KEY_MAX_LENGTH;
-		newCred = (char *)aws_svc_get_client_key();
-	} else {
-		return APP_ERR_UNKNOWN_CRED;
-	}
-
-	if (certSize > expSize) {
-		printk("Cert is too large (%d)\n", certSize);
-		return APP_ERR_CRED_TOO_LARGE;
-	}
-
-	replace_word(cred, "\\n", "\n", newCred, expSize);
-	replace_word(newCred, "\\s", " ", newCred, expSize);
-
-	rc = aws_svc_save_clear_settings(true);
-	if (rc < 0) {
-		MAIN_LOG_ERR("Error storing credential (%d)", rc);
-	} else if (type == CREDENTIAL_CERT) {
-		printk("Stored cert:\n%s\n", newCred);
-		devCertSet = true;
-
-	} else if (type == CREDENTIAL_KEY) {
-		printk("Stored key:\n%s\n", newCred);
-		devKeySet = true;
-	}
-
-	if (rc >= 0 && areCertsSet()) {
-		k_sem_give(&rx_cert_sem);
-	}
-
-	return rc;
-}
-
-static int shell_set_aws_device_cert(const struct shell *shell, size_t argc,
-				     char **argv)
-{
-	ARG_UNUSED(argc);
-
-	return shellSetCert(CREDENTIAL_CERT, argv[1]);
-}
-
-static int shell_set_aws_device_key(const struct shell *shell, size_t argc,
-				    char **argv)
-{
-	ARG_UNUSED(argc);
-
-	return shellSetCert(CREDENTIAL_KEY, argv[1]);
-}
-
 static int shell_decommission(const struct shell *shell, size_t argc,
 			      char **argv)
 {
@@ -873,10 +801,6 @@ static int shell_bootloader(const struct shell *shell, size_t argc, char **argv)
 #ifdef CONFIG_SHELL
 SHELL_STATIC_SUBCMD_SET_CREATE(
 	oob_cmds,
-	SHELL_CMD_ARG(set_cert, NULL, "Set device cert",
-		      shell_set_aws_device_cert, 2, 0),
-	SHELL_CMD_ARG(set_key, NULL, "Set device key", shell_set_aws_device_key,
-		      2, 0),
 	SHELL_CMD(reset, NULL, "Factory reset (decommission) device",
 		  shell_decommission),
 #ifdef CONFIG_REBOOT
