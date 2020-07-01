@@ -147,8 +147,9 @@ static ssize_t generate_psk(struct bt_conn *conn,
 	} else {
 		LOG_WRN("Setting LwM2M config to defaults");
 		memcpy(&lwm2m, &DEFAULT_CONFIG, sizeof(lwm2m));
-		LOG_DBG("LwM2M Client Identity: %s", lwm2m.client_id);
-		LOG_DBG("LwM2M Peer URL: %s", lwm2m.peer_url);
+		LOG_DBG("LwM2M Client Identity: %s",
+			log_strdup(lwm2m.client_id));
+		LOG_DBG("LwM2M Peer URL: %s", log_strdup(lwm2m.peer_url));
 	}
 	nvWriteLwm2mConfig(&lwm2m, sizeof(lwm2m));
 	LOG_HEXDUMP_DBG(lwm2m.client_psk, CONFIG_LWM2M_PSK_SIZE,
@@ -167,7 +168,8 @@ static ssize_t write_client_id(struct bt_conn *conn,
 					  CONFIG_LWM2M_CLIENT_ID_MAX_SIZE);
 	if (length > 0) {
 		nvWriteLwm2mConfig(&lwm2m, sizeof(lwm2m));
-		LOG_DBG("LwM2M Client Identity: %s", lwm2m.client_id);
+		LOG_DBG("LwM2M Client Identity: %s",
+			log_strdup(lwm2m.client_id));
 	}
 	return length;
 }
@@ -180,7 +182,7 @@ static ssize_t write_peer_url(struct bt_conn *conn,
 					  CONFIG_LWM2M_PEER_URL_MAX_SIZE);
 	if (length > 0) {
 		nvWriteLwm2mConfig(&lwm2m, sizeof(lwm2m));
-		LOG_DBG("LwM2M Peer URL: %s", lwm2m.peer_url);
+		LOG_DBG("LwM2M Peer URL: %s", log_strdup(lwm2m.peer_url));
 	}
 	return length;
 }

@@ -353,11 +353,11 @@ static const char *getAppStateString(app_state_function_t state)
 	IF_RETURN_STRING(state, appStateAwsDisconnect);
 	IF_RETURN_STRING(state, appStateAwsResolveServer);
 	IF_RETURN_STRING(state, appStateAwsInitShadow);
-	IF_RETURN_STRING(state, appStateWaitForLte);
 	IF_RETURN_STRING(state, appStateLteConnectedAws);
 	IF_RETURN_STRING(state, appStateCommissionDevice);
 #endif
 	IF_RETURN_STRING(state, appStateStartup);
+	IF_RETURN_STRING(state, appStateWaitForLte);
 	return "appStateUnknown";
 }
 

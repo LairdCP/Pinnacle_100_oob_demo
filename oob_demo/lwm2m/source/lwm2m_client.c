@@ -97,6 +97,12 @@ int lwm2m_set_bl654_sensor_data(float temperature, float humidity,
 		result += lwm2m_engine_set_float32("3303/0/5700", &float_value);
 #endif
 
+		/* Temperature is used to test generic sensor */
+#ifdef CONFIG_LWM2M_IPSO_GENERIC_SENSOR
+		float_value = make_float_value(temperature);
+		result += lwm2m_engine_set_float32("3303/0/5700", &float_value);
+#endif
+
 #ifdef CONFIG_LWM2M_IPSO_HUMIDITY_SENSOR
 		float_value = make_float_value(humidity);
 		result += lwm2m_engine_set_float32("3304/0/5700", &float_value);
@@ -337,7 +343,16 @@ static void create_bl654_sensor_objects(void)
 	/* 5603 and 5604 are the range of values supported by sensor. */
 	struct float32_value float_value;
 #ifdef CONFIG_LWM2M_IPSO_TEMP_SENSOR
-	/* temperature */
+	lwm2m_engine_create_obj_inst("3303/0");
+	lwm2m_engine_set_string("3303/0/5701", "C");
+	float_value.val1 = -40;
+	lwm2m_engine_set_float32("3303/0/5603", &float_value);
+	float_value.val1 = 85;
+	lwm2m_engine_set_float32("3303/0/5604", &float_value);
+#endif
+
+#ifdef CONFIG_LWM2M_IPSO_GENERIC_SENSOR
+	/* temperature used for test */
 	lwm2m_engine_create_obj_inst("3303/0");
 	lwm2m_engine_set_string("3303/0/5701", "C");
 	float_value.val1 = -40;
@@ -347,7 +362,6 @@ static void create_bl654_sensor_objects(void)
 #endif
 
 #ifdef CONFIG_LWM2M_IPSO_HUMIDITY_SENSOR
-	/* humidity */
 	lwm2m_engine_create_obj_inst("3304/0");
 	lwm2m_engine_set_string("3304/0/5701", "%");
 	float_value.val1 = 0;
@@ -357,7 +371,6 @@ static void create_bl654_sensor_objects(void)
 #endif
 
 #ifdef CONFIG_LWM2M_IPSO_PRESSURE_SENSOR
-	/* pressure */
 	lwm2m_engine_create_obj_inst("3323/0");
 	lwm2m_engine_set_string("3323/0/5701", "Pa");
 	float_value.val1 = 300;
