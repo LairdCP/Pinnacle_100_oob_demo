@@ -163,7 +163,7 @@ static void GatewayParser(const char *pTopic, const char *pJson)
 	/* Once this has been processed (after reset) we can unsubscribe.
 	The list may be empty. */
 	if (getAcceptedTopic) {
-		FRAMEWORK_MSG_CREATE_AND_SEND(FWK_ID_AWS, FWK_ID_AWS,
+		FRAMEWORK_MSG_CREATE_AND_SEND(FWK_ID_CLOUD, FWK_ID_CLOUD,
 					      FMC_AWS_GET_ACCEPTED_RECEIVED);
 	}
 }
@@ -194,7 +194,7 @@ static void SensorDeltaParser(const char *pTopic, const char *pJson)
 		BufferPool_Take(FWK_BUFFER_MSG_SIZE(SensorCmdMsg_t, bufSize));
 	if (pMsg != NULL) {
 		pMsg->header.msgCode = FMC_CONFIG_REQUEST;
-		pMsg->header.txId = FWK_ID_AWS;
+		pMsg->header.txId = FWK_ID_CLOUD;
 		pMsg->header.rxId = FWK_ID_SENSOR_TASK;
 		pMsg->size = bufSize;
 		pMsg->length = (bufSize > 0) ? (bufSize - 1) : 0;

@@ -654,7 +654,7 @@ static void sensor_aggregator(uint8_t sensor, int32_t reading)
 			return;
 		}
 		pMsg->header.msgCode = FMC_BL654_SENSOR_EVENT;
-		pMsg->header.rxId = FWK_ID_AWS;
+		pMsg->header.rxId = FWK_ID_CLOUD;
 		pMsg->temperatureC = temperature;
 		pMsg->humidityPercent = humidity;
 		pMsg->pressurePa = pressure;

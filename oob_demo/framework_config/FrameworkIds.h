@@ -27,7 +27,7 @@ enum FwkIdEnum {
 
 	/* Application */
 	FWK_ID_SENSOR_TASK = FWK_ID_APP_START,
-	FWK_ID_AWS,
+	FWK_ID_CLOUD,
 
 	/* Reserved for framework (DO NOT DELETE, and it must be LAST) */
 	__FRAMEWORK_MAX_MSG_RECEIVERS

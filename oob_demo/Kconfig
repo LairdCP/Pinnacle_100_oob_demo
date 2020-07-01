@@ -1,7 +1,6 @@
 # Copyright (c) 2020 Laird Connectivity
 # SPDX-License-Identifier: Apache-2.0
 
-
 menuconfig USER_APPLICATION
      bool "Config User Application"
 	 default y
@@ -12,12 +11,11 @@ config LAIRD_CONNECTIVITY_DEBUG
     bool
     default n
 
-menu "BL654 Sensor"
-	 default y
-
-config BL654_SENSOR
-    bool "Parse Bluetooth advertisements for BL654 Sensor"
+menuconfig BL654_SENSOR
+    bool "BL654 sensor support"
     default y
+
+if BL654_SENSOR
 
 config BL654_SENSOR_SEND_TO_AWS_RATE_SECONDS
     int "The period at which to send BL654 Sensor data to AWS"
@@ -31,11 +29,26 @@ config BL654_SENSOR_NAME
         Any sensor with the ESS service should work
         (temperature, humidity, and pressure).
 
-endmenu
+endif # BL654_SENSOR
+
+config SCAN_FOR_BT510
+    bool "Parse Bluetooth advertisements for BT510 Sensor"
+    default y
 
 config CLOUD_QUEUE_SIZE
     int "The size of queue for sending messages to AWS or LWM2M client"
     default 32
+
+config AWS_TOPIC_MAX_SIZE
+    int "Maximum size for AWS topic strings"
+    default 64
+
+menuconfig BLUEGRASS
+    bool "Laird Connectivity Bluegrass cloud"
+    help
+        Send sensor data to Bluegrass cloud platform
+
+if BLUEGRASS
 
 config AWS_DATA_SEND_LED_OFF_DURATION_MILLISECONDS
     int "The amount of time to turn off the green LED when data is sent"
@@ -53,24 +66,6 @@ config AWS_KEEP_ALIVE_SECONDS
     range 1 80
     help
         This can't be more than the AWS connection timeout.
-
-config AWS_TOPIC_MAX_SIZE
-    int "Maximum size for AWS topic strings"
-    default 64
-
-config BLUEGRASS
-    bool "Send data to Laird Connectivity's Bluegrass (AWS)"
-    default y
-    help
-        When disabled modem and BL654 Sensor data will still be sent
-        to the shadow.
-
-menu "Laird Connectivity Bluegrass Demo Options"
-     depends on BLUEGRASS
-
-config SCAN_FOR_BT510
-    bool "Parse Bluetooth advertisements for BT510 Sensor"
-    default y
 
 config USE_SINGLE_AWS_TOPIC
     bool "Send all sensor data to gateway topic"
@@ -101,8 +96,7 @@ config SHADOW_IN_MAX_SIZE
 
 config SENSOR_TABLE_SIZE
     int "Number of sensors that can be monitored"
-    default 0 if LWM2M
-    default 15 if BLUEGRASS
+    default 15
     range 0 15
 
 config SENSOR_LOG_MAX_SIZE
@@ -131,7 +125,7 @@ config VSP_RX_ECHO
     help
         This occurs in task context because strings can be long
 
-endmenu # Bluegrass options
+endif # BLUEGRASS
 
 config JSON_LOG_PUBLISH
     bool "Print data published to AWS"
@@ -142,8 +136,11 @@ config JSON_LOG_TOPIC
 config JSON_LOG_MQTT_RX_DATA
     bool "Enable/Disable printing of received MQTT data."
 
-menu "Laird Connectivity LWM2M Demo Options"
-     depends on LWM2M
+menuconfig LC_LWM2M
+    bool "Laird Connectivity LWM2M Demo Options"
+    depends on LWM2M
+
+if LC_LWM2M
 
 config LWM2M_ENABLE_PSK_GENERATION
     bool "Allow new PSK to be generated over Bluetooth"
@@ -167,7 +164,7 @@ config LWM2M_CLIENT_ENDPOINT_MAX_SIZE
     int "Maximum size of the client endpoint name"
     default 64
 
-endmenu # LWM2M options
+endif # LC_LWM2M
 
 endif # USER_APPLICATION
 

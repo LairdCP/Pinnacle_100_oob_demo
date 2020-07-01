@@ -150,10 +150,8 @@ static DispatchResult_t SensorShadowInitMsgHandler(FwkMsgReceiver_t *pMsgRxer,
 						   FwkMsg_t *pMsg);
 
 static void RegisterConnectionCallbacks(void);
-static int RegisterSecurityCallbacks(void);
 static int StartDiscovery(void);
 static int ExchangeMtu(void);
-static int EncryptLink(SensorTaskObj_t *pObj);
 static int RequestDisconnect(SensorTaskObj_t *pObj, const char *str);
 
 static int Discover(void);
@@ -167,6 +165,8 @@ static void SendSetEpochCommand(void);
 static void ConnectedCallback(struct bt_conn *conn, uint8_t err);
 static void DisconnectedCallback(struct bt_conn *conn, uint8_t reason);
 
+static int RegisterSecurityCallbacks(void);
+static int EncryptLink(SensorTaskObj_t *pObj);
 static void PasskeyDisplayCallback(struct bt_conn *conn, unsigned int passkey);
 static void PasskeyEntryCallback(struct bt_conn *conn);
 static void PasskeyConfirmCallback(struct bt_conn *conn, unsigned int passkey);
@@ -660,13 +660,6 @@ static int ExchangeMtu(void)
 	return status;
 }
 
-static int EncryptLink(SensorTaskObj_t *pObj)
-{
-	int status = bt_conn_set_security(pObj->conn, BT_SECURITY_L3);
-	LOG_DBG("%d", status);
-	return status;
-}
-
 static int RequestDisconnect(SensorTaskObj_t *pObj, const char *str)
 {
 	int status = bt_conn_disconnect(pObj->conn,
@@ -725,6 +718,13 @@ static void DisconnectedCallback(struct bt_conn *conn, uint8_t reason)
 	if (conn == st.conn) {
 		FRAMEWORK_MSG_SEND_TO_SELF(FWK_ID_SENSOR_TASK, FMC_DISCONNECT);
 	}
+}
+
+static int EncryptLink(SensorTaskObj_t *pObj)
+{
+	int status = bt_conn_set_security(pObj->conn, BT_SECURITY_L3);
+	LOG_DBG("%d", status);
+	return status;
 }
 
 static void PasskeyDisplayCallback(struct bt_conn *conn, unsigned int passkey)
@@ -921,9 +921,10 @@ static void AwsFifoMonitorTimerCallbackIsr(struct k_timer *timer_id)
 		pObj->fifoTicks += (AWS_FIFO_CHECK_RATE_SECONDS * MSEC_PER_SEC);
 	}
 
-	if (pObj->fifoTicks >= (AWS_FIFO_PURGE_THRESHOLD_SECONDS * MSEC_PER_SEC)) {
+	if (pObj->fifoTicks >=
+	    (AWS_FIFO_PURGE_THRESHOLD_SECONDS * MSEC_PER_SEC)) {
 		pObj->fifoTicks = 0;
-		size_t flushed = Framework_Flush(FWK_ID_AWS);
+		size_t flushed = Framework_Flush(FWK_ID_CLOUD);
 		if (flushed > 0) {
 			LOG_WRN("Flushed %u cloud messages", flushed);
 		}

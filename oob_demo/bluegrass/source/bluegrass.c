@@ -159,5 +159,5 @@ static void StartGatewayInitTimer(void)
 static void GatewayInitTimerCallbackIsr(struct k_timer *timer_id)
 {
 	UNUSED_PARAMETER(timer_id);
-	FRAMEWORK_MSG_CREATE_AND_SEND(FWK_ID_AWS, FWK_ID_AWS, FMC_GATEWAY_INIT);
+	FRAMEWORK_MSG_CREATE_AND_SEND(FWK_ID_CLOUD, FWK_ID_CLOUD, FMC_GATEWAY_INIT);
 }

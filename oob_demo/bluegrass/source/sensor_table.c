@@ -416,7 +416,7 @@ void SensorTable_SubscriptionHandler(void)
 				BufferPool_Take(sizeof(SubscribeMsg_t));
 			if (pMsg != NULL) {
 				pMsg->header.msgCode = FMC_SUBSCRIBE;
-				pMsg->header.rxId = FWK_ID_AWS;
+				pMsg->header.rxId = FWK_ID_CLOUD;
 				pMsg->header.txId = FWK_ID_SENSOR_TASK;
 				pMsg->subscribe = pEntry->whitelisted;
 				pMsg->tableIndex = i;
@@ -445,7 +445,7 @@ void SensorTable_GetAcceptedSubscriptionHandler(void)
 				BufferPool_Take(sizeof(SubscribeMsg_t));
 			if (pMsg != NULL) {
 				pMsg->header.msgCode = FMC_SUBSCRIBE;
-				pMsg->header.rxId = FWK_ID_AWS;
+				pMsg->header.rxId = FWK_ID_CLOUD;
 				pMsg->header.txId = FWK_ID_SENSOR_TASK;
 				pMsg->subscribe = true;
 				pMsg->tableIndex = i;
@@ -538,7 +538,7 @@ void SensorTable_CreateShadowFromDumpResponse(FwkBufMsg_t *pRsp,
 		return;
 	}
 	pMsg->header.msgCode = FMC_SENSOR_PUBLISH;
-	pMsg->header.rxId = FWK_ID_AWS;
+	pMsg->header.rxId = FWK_ID_CLOUD;
 	pMsg->size = size;
 
 	ShadowBuilder_Start(pMsg, SKIP_MEMSET);
@@ -823,7 +823,7 @@ static void ShadowMaker(SensorEntry_t *pEntry)
 	}
 
 	pMsg->header.msgCode = FMC_SENSOR_PUBLISH;
-	pMsg->header.rxId = FWK_ID_AWS;
+	pMsg->header.rxId = FWK_ID_CLOUD;
 	pMsg->size = SHADOW_BUF_SIZE;
 
 	ShadowBuilder_Start(pMsg, SKIP_MEMSET);
@@ -1138,7 +1138,7 @@ static void GatewayShadowMaker(bool WhitelistProcessed)
 		return;
 	}
 	pMsg->header.msgCode = FMC_GATEWAY_OUT;
-	pMsg->header.rxId = FWK_ID_AWS;
+	pMsg->header.rxId = FWK_ID_CLOUD;
 	pMsg->size = SENSOR_GATEWAY_SHADOW_MAX_SIZE;
 
 	ShadowBuilder_Start(pMsg, SKIP_MEMSET);
@@ -1336,7 +1336,7 @@ static void PublishToGetAccepted(SensorEntry_t *pEntry)
 	}
 
 	pMsg->header.msgCode = FMC_SENSOR_PUBLISH;
-	pMsg->header.rxId = FWK_ID_AWS;
+	pMsg->header.rxId = FWK_ID_CLOUD;
 	pMsg->size = size;
 	char *fmt = SENSOR_GET_TOPIC_FMT_STR;
 	snprintk(pMsg->topic, CONFIG_AWS_TOPIC_MAX_SIZE, fmt,

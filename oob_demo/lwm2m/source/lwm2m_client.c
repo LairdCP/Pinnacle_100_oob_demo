@@ -18,7 +18,7 @@ LOG_MODULE_REGISTER(lwm2m_client);
 /******************************************************************************/
 #include <zephyr.h>
 #include <zephyr/types.h>
-#include <gpio.h>
+#include <drivers/gpio.h>
 #include <net/lwm2m.h>
 #include <string.h>
 #include <stddef.h>
@@ -68,7 +68,8 @@ static int device_factory_default_cb(uint16_t obj_inst_id);
 static int lwm2m_setup(const char *serial_number, const char *imei);
 static void rd_client_event(struct lwm2m_ctx *client,
 			    enum lwm2m_rd_client_event client_event);
-static int led_on_off_cb(uint16_t obj_inst_id, uint8_t *data, uint16_t data_len,
+static int led_on_off_cb(uint16_t obj_inst_id, uint16_t res_id,
+			 uint16_t res_inst_id, uint8_t *data, uint16_t data_len,
 			 bool last_block, size_t total_size);
 static int resolve_server_address(void);
 static void create_bl654_sensor_objects(void);
@@ -91,14 +92,20 @@ int lwm2m_set_bl654_sensor_data(float temperature, float humidity,
 	if (lwm2m_initialized) {
 		struct float32_value float_value;
 
+#ifdef CONFIG_LWM2M_IPSO_TEMP_SENSOR
 		float_value = make_float_value(temperature);
 		result += lwm2m_engine_set_float32("3303/0/5700", &float_value);
+#endif
 
+#ifdef CONFIG_LWM2M_IPSO_HUMIDITY_SENSOR
 		float_value = make_float_value(humidity);
 		result += lwm2m_engine_set_float32("3304/0/5700", &float_value);
+#endif
 
+#ifdef CONFIG_LWM2M_IPSO_PRESSURE_SENSOR
 		float_value = make_float_value(pressure);
 		result += lwm2m_engine_set_float32("3323/0/5700", &float_value);
+#endif
 	}
 	return result;
 }
@@ -123,7 +130,8 @@ static int device_factory_default_cb(uint16_t obj_inst_id)
 	return -1;
 }
 
-static void *current_time_read_cb(uint16_t obj_inst_id, size_t *data_len)
+static void *current_time_read_cb(uint16_t obj_inst_id, uint16_t res_id,
+				  uint16_t res_inst_id, size_t *data_len)
 {
 	/* The device object doesn't allow this to be set because
 	 * reads are intercepted */
@@ -152,7 +160,7 @@ static int lwm2m_setup(const char *serial_number, const char *imei)
 	snprintk(server_url, server_url_len, "coap%s//%s",
 		 IS_ENABLED(CONFIG_LWM2M_DTLS_SUPPORT) ? "s:" : ":",
 		 server_addr);
-	LOG_WRN("Server URL: %s", server_url);
+	LOG_WRN("Server URL: %s", log_strdup(server_url));
 
 	/* Security Mode */
 	lwm2m_engine_set_u8("0/0/2",
@@ -236,6 +244,9 @@ static void rd_client_event(struct lwm2m_ctx *client,
 	case LWM2M_RD_CLIENT_EVENT_DISCONNECT:
 		LOG_DBG("Disconnected");
 		break;
+	case LWM2M_RD_CLIENT_EVENT_QUEUE_MODE_RX_OFF:
+		/* do nothing */
+		break;
 	}
 }
 
@@ -301,7 +312,8 @@ static void lwm2m_client_init_internal(void)
 	lwm2m_initialized = true;
 }
 
-static int led_on_off_cb(uint16_t obj_inst_id, uint8_t *data, uint16_t data_len,
+static int led_on_off_cb(uint16_t obj_inst_id, uint16_t res_id,
+			 uint16_t res_inst_id, uint8_t *data, uint16_t data_len,
 			 bool last_block, size_t total_size)
 {
 	uint8_t led_val = *(uint8_t *)data;
@@ -324,6 +336,7 @@ static void create_bl654_sensor_objects(void)
 	/* The BL654 Sensor contains a BME 280. */
 	/* 5603 and 5604 are the range of values supported by sensor. */
 	struct float32_value float_value;
+#ifdef CONFIG_LWM2M_IPSO_TEMP_SENSOR
 	/* temperature */
 	lwm2m_engine_create_obj_inst("3303/0");
 	lwm2m_engine_set_string("3303/0/5701", "C");
@@ -331,7 +344,9 @@ static void create_bl654_sensor_objects(void)
 	lwm2m_engine_set_float32("3303/0/5603", &float_value);
 	float_value.val1 = 85;
 	lwm2m_engine_set_float32("3303/0/5604", &float_value);
+#endif
 
+#ifdef CONFIG_LWM2M_IPSO_HUMIDITY_SENSOR
 	/* humidity */
 	lwm2m_engine_create_obj_inst("3304/0");
 	lwm2m_engine_set_string("3304/0/5701", "%");
@@ -339,7 +354,9 @@ static void create_bl654_sensor_objects(void)
 	lwm2m_engine_set_float32("3304/0/5603", &float_value);
 	float_value.val1 = 100;
 	lwm2m_engine_set_float32("3304/0/5604", &float_value);
+#endif
 
+#ifdef CONFIG_LWM2M_IPSO_PRESSURE_SENSOR
 	/* pressure */
 	lwm2m_engine_create_obj_inst("3323/0");
 	lwm2m_engine_set_string("3323/0/5701", "Pa");
@@ -347,6 +364,7 @@ static void create_bl654_sensor_objects(void)
 	lwm2m_engine_set_float32("3323/0/5603", &float_value);
 	float_value.val1 = 1100000;
 	lwm2m_engine_set_float32("3323/0/5604", &float_value);
+#endif
 }
 
 static struct float32_value make_float_value(float v)

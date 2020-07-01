@@ -96,6 +96,15 @@
       "problemMatcher": []
     },
     {
+      "label": "romreport",
+      "type": "shell",
+      "command": "west build -d build ${workspaceRoot}/oob_demo --target rom_report > ${workspaceRoot}/build/rom_report",
+      "windows": {
+        "command": "west build -d build ${workspaceRoot}\\oob_demo --target rom_report > ${workspaceRoot}\\build\\rom_report"
+      },
+      "problemMatcher": []
+    },
+    {
       "label": "build-with-mcumgr",
       "type": "shell",
       "command": "west build -b pinnacle_100_dvk -d ${workspaceRoot}/build ${workspaceRoot}/oob_demo -- -DCONF_FILE=\"${workspaceRoot}/oob_demo/prj.conf ${workspaceRoot}/../modules/zephyr_lib/mcumgr_wrapper/config/overlay-qspi-bt.conf ${workspaceRoot}/../modules/zephyr_lib/mcumgr_wrapper/config/overlay-lfs.conf\"",

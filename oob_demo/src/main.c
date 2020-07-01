@@ -30,7 +30,6 @@ LOG_MODULE_REGISTER(oob_main);
 
 #include "led_configuration.h"
 #include "lte.h"
-#include "aws.h"
 #include "nv.h"
 #include "ble_cellular_service.h"
 #include "ble_aws_service.h"
@@ -50,6 +49,7 @@ LOG_MODULE_REGISTER(oob_main);
 #endif
 
 #if CONFIG_BLUEGRASS
+#include "aws.h"
 #include "bluegrass.h"
 #endif
 
@@ -88,48 +88,52 @@ typedef void (*app_state_function_t)(void);
 K_SEM_DEFINE(lte_ready_sem, 0, 1);
 K_SEM_DEFINE(rx_cert_sem, 0, 1);
 
+#ifdef CONFIG_BLUEGRASS
+static struct k_timer awsKeepAliveTimer;
 static bool initShadow = true;
 static bool resolveAwsServer = true;
-
-static bool commissioned;
 static bool allowCommissioning = false;
-static bool appReady = false;
 static bool devCertSet;
 static bool devKeySet;
+#endif
+
+static FwkMsgReceiver_t cloudMsgReceiver;
+static bool commissioned;
+static bool appReady = false;
 
 static app_state_function_t appState;
 struct lte_status *lteInfo;
 
-static FwkMsgReceiver_t awsMsgReceiver;
-
-K_MSGQ_DEFINE(awsQ, FWK_QUEUE_ENTRY_SIZE, CONFIG_CLOUD_QUEUE_SIZE,
+K_MSGQ_DEFINE(cloudQ, FWK_QUEUE_ENTRY_SIZE, CONFIG_CLOUD_QUEUE_SIZE,
 	      FWK_QUEUE_ALIGNMENT);
-
-static struct k_timer awsKeepAliveTimer;
 
 /******************************************************************************/
 /* Local Function Prototypes                                                  */
 /******************************************************************************/
+#ifdef CONFIG_BLUEGRASS
 static void appStateAwsSendSensorData(void);
 static void appStateAwsInitShadow(void);
 static void appStateAwsConnect(void);
 static void appStateAwsDisconnect(void);
 static void appStateAwsResolveServer(void);
-static void appStateWaitForLte(void);
+static void setAwsStatusWrapper(enum aws_status status);
+static void AwsKeepAliveTimerCallbackIsr(struct k_timer *timer_id);
+static int setAwsCredentials(void);
+static void StartKeepAliveTimer(void);
 static void appStateCommissionDevice(void);
-static void appStateStartup(void);
 static void appStateLteConnectedAws(void);
+static void awsMsgHandler(void);
+static void awsSvcEvent(enum aws_svc_event event);
+#endif
+
+static void initializeCloudMsgReceiver(void);
+static void appStateWaitForLte(void);
+static void appStateStartup(void);
 
 static void appSetNextState(app_state_function_t next);
 static const char *getAppStateString(app_state_function_t state);
 
-static void setAwsStatusWrapper(enum aws_status status);
-
 static void initializeBle(const char *imei);
-static void initializeAwsMsgReceiver(void);
-static void awsMsgHandler(void);
-static void awsSvcEvent(enum aws_svc_event event);
-static int setAwsCredentials(void);
 static void lteEvent(enum lte_event event);
 static void softwareReset(uint32_t DelayMs);
 
@@ -140,9 +144,6 @@ static void lwm2mMsgHandler(void);
 #endif
 
 static void configure_leds(void);
-
-static void StartKeepAliveTimer(void);
-static void AwsKeepAliveTimerCallbackIsr(struct k_timer *timer_id);
 
 /******************************************************************************/
 /* Global Function Definitions                                                */
@@ -180,13 +181,16 @@ void main(void)
 	lteInfo = lteGetStatus();
 
 	/* init AWS */
+#if CONFIG_BLUEGRASS
 	rc = awsInit();
 	if (rc != 0) {
 		goto exit;
 	}
 
-	initializeAwsMsgReceiver();
 	k_timer_init(&awsKeepAliveTimer, AwsKeepAliveTimerCallbackIsr, NULL);
+#endif
+
+	initializeCloudMsgReceiver();
 
 	initializeBle(lteInfo->IMEI);
 	single_peripheral_initialize();
@@ -196,7 +200,7 @@ void main(void)
 #endif
 
 #if CONFIG_BLUEGRASS
-	Bluegrass_Initialize(awsMsgReceiver.pQueue);
+	Bluegrass_Initialize(cloudMsgReceiver.pQueue);
 #endif
 
 	dis_initialize(APP_VERSION_STRING);
@@ -215,6 +219,8 @@ void main(void)
 #ifdef CONFIG_LAIRDCONNECTIVITY_BLR
 	bootloader_init();
 #endif
+
+#if CONFIG_BLUEGRASS
 	rc = aws_svc_init(lteInfo->IMEI);
 	if (rc != 0) {
 		goto exit;
@@ -225,6 +231,7 @@ void main(void)
 	} else {
 		aws_svc_set_status(NULL, AWS_STATUS_NOT_PROVISIONED);
 	}
+#endif
 
 #ifdef CONFIG_LWM2M
 	ble_lwm2m_service_init();
@@ -279,6 +286,16 @@ EXTERNED void Framework_AssertionHandler(char *file, int line)
 /******************************************************************************/
 /* Local Function Definitions                                                 */
 /******************************************************************************/
+
+static void initializeCloudMsgReceiver(void)
+{
+	cloudMsgReceiver.id = FWK_ID_CLOUD;
+	cloudMsgReceiver.pQueue = &cloudQ;
+	cloudMsgReceiver.rxBlockTicks = K_NO_WAIT; /* unused */
+	cloudMsgReceiver.pMsgDispatcher = NULL; /* unused */
+	Framework_RegisterReceiver(&cloudMsgReceiver);
+}
+
 static void initializeBle(const char *imei)
 {
 	int err;
@@ -324,37 +341,22 @@ static void lteEvent(enum lte_event event)
 	}
 }
 
-static void appStateAwsSendSensorData(void)
-{
-	/* If decommissioned then disconnect. */
-	if (!commissioned || !awsConnected()) {
-		appSetNextState(appStateAwsDisconnect);
-		led_turn_off(GREEN_LED2);
-		return;
-	}
-
-	/* Process messages until there is an error. */
-	awsMsgHandler();
-
-	if (k_msgq_num_used_get(&awsQ) != 0) {
-		MAIN_LOG_WRN("%u unsent messages", k_msgq_num_used_get(&awsQ));
-	}
-}
-
 static const char *getAppStateString(app_state_function_t state)
 {
 #ifdef CONFIG_LWM2M
 	IF_RETURN_STRING(state, appStateLwm2m);
 	IF_RETURN_STRING(state, appStateInitLwm2mClient);
 #endif
+#ifdef CONFIG_BLUEGRASS
 	IF_RETURN_STRING(state, appStateAwsSendSensorData);
 	IF_RETURN_STRING(state, appStateAwsConnect);
 	IF_RETURN_STRING(state, appStateAwsDisconnect);
-	IF_RETURN_STRING(state, appStateWaitForLte);
-	IF_RETURN_STRING(state, appStateLteConnectedAws);
 	IF_RETURN_STRING(state, appStateAwsResolveServer);
 	IF_RETURN_STRING(state, appStateAwsInitShadow);
+	IF_RETURN_STRING(state, appStateWaitForLte);
+	IF_RETURN_STRING(state, appStateLteConnectedAws);
 	IF_RETURN_STRING(state, appStateCommissionDevice);
+#endif
 	IF_RETURN_STRING(state, appStateStartup);
 	return "appStateUnknown";
 }
@@ -379,6 +381,43 @@ static void appStateStartup(void)
 #endif
 }
 
+static void appStateWaitForLte(void)
+{
+#ifdef CONFIG_BLUEGRASS
+	setAwsStatusWrapper(AWS_STATUS_DISCONNECTED);
+#endif
+
+	if (!lteIsReady()) {
+		/* Wait for LTE ready evt */
+		k_sem_take(&lte_ready_sem, K_FOREVER);
+	}
+
+#ifdef CONFIG_LWM2M
+	appSetNextState(appStateInitLwm2mClient);
+#else
+	appSetNextState(appStateLteConnectedAws);
+#endif
+}
+
+#ifdef CONFIG_BLUEGRASS
+static void appStateAwsSendSensorData(void)
+{
+	/* If decommissioned then disconnect. */
+	if (!commissioned || !awsConnected()) {
+		appSetNextState(appStateAwsDisconnect);
+		led_turn_off(GREEN_LED2);
+		return;
+	}
+
+	/* Process messages until there is an error. */
+	awsMsgHandler();
+
+	if (k_msgq_num_used_get(&cloudQ) != 0) {
+		MAIN_LOG_WRN("%u unsent messages",
+			     k_msgq_num_used_get(&cloudQ));
+	}
+}
+
 /* This function will throw away sensor data if it can't send it.
  * Subscription failures can occur even when the return value was success.
  * An AWS disconnect callback is used to send a message to unblock this queue.
@@ -398,7 +437,7 @@ static void awsMsgHandler(void)
 		 */
 		rc = -EINVAL;
 		pMsg = NULL;
-		Framework_Receive(awsMsgReceiver.pQueue, &pMsg, K_FOREVER);
+		Framework_Receive(cloudMsgReceiver.pQueue, &pMsg, K_FOREVER);
 		if (pMsg == NULL) {
 			return;
 		}
@@ -430,9 +469,7 @@ static void awsMsgHandler(void)
 			break;
 
 		default:
-#if CONFIG_BLUEGRASS
 			rc = Bluegrass_MsgHandler(pMsg, &freeMsg);
-#endif
 			break;
 		}
 
@@ -482,15 +519,13 @@ static void appStateAwsInitShadow(void)
 		initShadow = false;
 		appSetNextState(appStateAwsSendSensorData);
 		StartKeepAliveTimer();
-#if CONFIG_BLUEGRASS
 		Bluegrass_ConnectedCallback();
-#endif
 	}
 }
 
 void awsDisconnectCallback(void)
 {
-	FRAMEWORK_MSG_CREATE_AND_SEND(FWK_ID_RESERVED, FWK_ID_AWS,
+	FRAMEWORK_MSG_CREATE_AND_SEND(FWK_ID_RESERVED, FWK_ID_CLOUD,
 				      FMC_AWS_DISCONNECTED);
 }
 
@@ -536,9 +571,7 @@ static void appStateAwsDisconnect(void)
 	FRAMEWORK_MSG_CREATE_AND_BROADCAST(FWK_ID_RESERVED,
 					   FMC_AWS_DISCONNECTED);
 
-#if CONFIG_BLUEGRASS
 	Bluegrass_DisconnectedCallback();
-#endif
 
 	appSetNextState(appStateAwsConnect);
 }
@@ -555,22 +588,6 @@ static void appStateAwsResolveServer(void)
 	appSetNextState(appStateAwsConnect);
 }
 
-static void appStateWaitForLte(void)
-{
-	setAwsStatusWrapper(AWS_STATUS_DISCONNECTED);
-
-	if (!lteIsReady()) {
-		/* Wait for LTE ready evt */
-		k_sem_take(&lte_ready_sem, K_FOREVER);
-	}
-
-#ifdef CONFIG_LWM2M
-	appSetNextState(appStateInitLwm2mClient);
-#else
-	appSetNextState(appStateLteConnectedAws);
-#endif
-}
-
 static void appStateLteConnectedAws(void)
 {
 	if (resolveAwsServer && areCertsSet()) {
@@ -581,52 +598,6 @@ static void appStateLteConnectedAws(void)
 		appSetNextState(appStateCommissionDevice);
 	}
 }
-
-#ifdef CONFIG_LWM2M
-static void appStateInitLwm2mClient(void)
-{
-	lwm2m_client_init();
-	appSetNextState(appStateLwm2m);
-}
-
-static void appStateLwm2m(void)
-{
-	lwm2mMsgHandler();
-}
-
-static void lwm2mMsgHandler(void)
-{
-	int rc = 0;
-	FwkMsg_t *pMsg;
-
-	while (rc == 0) {
-		/* Remove sensor/gateway data from queue and send it to cloud. */
-		rc = -EINVAL;
-		pMsg = NULL;
-		Framework_Receive(awsMsgReceiver.pQueue, &pMsg, K_FOREVER);
-		if (pMsg == NULL) {
-			return;
-		}
-
-		switch (pMsg->header.msgCode) {
-		case FMC_BL654_SENSOR_EVENT: {
-			BL654SensorMsg_t *pBmeMsg = (BL654SensorMsg_t *)pMsg;
-			rc = lwm2m_set_bl654_sensor_data(
-				pBmeMsg->temperatureC, pBmeMsg->humidityPercent,
-				pBmeMsg->pressurePa);
-		} break;
-
-		default:
-			break;
-		}
-		BufferPool_Free(pMsg);
-
-		if (rc != 0) {
-			MAIN_LOG_ERR("Could not send data (%d)", rc);
-		}
-	}
-}
-#endif
 
 static int setAwsCredentials(void)
 {
@@ -667,14 +638,12 @@ static void decommission(void)
 	allowCommissioning = true;
 	initShadow = true;
 	appSetNextState(appStateAwsDisconnect);
-#if CONFIG_BLUEGRASS
 	/* If the device is deleted from AWS it must be decommissioned
 	 * in the BLE app before it is reprovisioned.
 	 */
 	FRAMEWORK_MSG_CREATE_AND_SEND(FWK_ID_RESERVED, FWK_ID_SENSOR_TASK,
 				      FMC_AWS_DECOMMISSION);
-#endif
-	FRAMEWORK_MSG_CREATE_AND_SEND(FWK_ID_RESERVED, FWK_ID_AWS,
+	FRAMEWORK_MSG_CREATE_AND_SEND(FWK_ID_RESERVED, FWK_ID_CLOUD,
 				      FMC_AWS_DECOMMISSION);
 	printk("Device is decommissioned\n");
 }
@@ -706,14 +675,65 @@ static void setAwsStatusWrapper(enum aws_status status)
 	aws_svc_set_status(single_peripheral_get_conn(), status);
 }
 
-static void initializeAwsMsgReceiver(void)
+static void StartKeepAliveTimer(void)
 {
-	awsMsgReceiver.id = FWK_ID_AWS;
-	awsMsgReceiver.pQueue = &awsQ;
-	awsMsgReceiver.rxBlockTicks = K_NO_WAIT; /* unused */
-	awsMsgReceiver.pMsgDispatcher = NULL; /* unused */
-	Framework_RegisterReceiver(&awsMsgReceiver);
+	k_timer_start(&awsKeepAliveTimer,
+		      K_SECONDS(CONFIG_AWS_KEEP_ALIVE_SECONDS), K_NO_WAIT);
 }
+
+static void AwsKeepAliveTimerCallbackIsr(struct k_timer *timer_id)
+{
+	UNUSED_PARAMETER(timer_id);
+	FRAMEWORK_MSG_CREATE_AND_SEND(FWK_ID_CLOUD, FWK_ID_CLOUD,
+				      FMC_AWS_KEEP_ALIVE);
+}
+#endif /* CONFIG_BLUEGRASS */
+
+#ifdef CONFIG_LWM2M
+static void appStateInitLwm2mClient(void)
+{
+	lwm2m_client_init();
+	appSetNextState(appStateLwm2m);
+}
+
+static void appStateLwm2m(void)
+{
+	lwm2mMsgHandler();
+}
+
+static void lwm2mMsgHandler(void)
+{
+	int rc = 0;
+	FwkMsg_t *pMsg;
+
+	while (rc == 0) {
+		/* Remove sensor/gateway data from queue and send it to cloud. */
+		rc = -EINVAL;
+		pMsg = NULL;
+		Framework_Receive(cloudMsgReceiver.pQueue, &pMsg, K_FOREVER);
+		if (pMsg == NULL) {
+			return;
+		}
+
+		switch (pMsg->header.msgCode) {
+		case FMC_BL654_SENSOR_EVENT: {
+			BL654SensorMsg_t *pBmeMsg = (BL654SensorMsg_t *)pMsg;
+			rc = lwm2m_set_bl654_sensor_data(
+				pBmeMsg->temperatureC, pBmeMsg->humidityPercent,
+				pBmeMsg->pressurePa);
+		} break;
+
+		default:
+			break;
+		}
+		BufferPool_Free(pMsg);
+
+		if (rc != 0) {
+			MAIN_LOG_ERR("Could not send data (%d)", rc);
+		}
+	}
+}
+#endif
 
 static void softwareReset(uint32_t DelayMs)
 {
@@ -735,19 +755,6 @@ static void configure_leds(void)
 	led_init(c, ARRAY_SIZE(c));
 }
 
-static void StartKeepAliveTimer(void)
-{
-	k_timer_start(&awsKeepAliveTimer,
-		      K_SECONDS(CONFIG_AWS_KEEP_ALIVE_SECONDS), K_NO_WAIT);
-}
-
-static void AwsKeepAliveTimerCallbackIsr(struct k_timer *timer_id)
-{
-	UNUSED_PARAMETER(timer_id);
-	FRAMEWORK_MSG_CREATE_AND_SEND(FWK_ID_AWS, FWK_ID_AWS,
-				      FMC_AWS_KEEP_ALIVE);
-}
-
 /* Override weak implementation in laird_power.c */
 void power_measurement_callback(uint8_t integer, uint8_t decimal)
 {
@@ -758,6 +765,7 @@ void power_measurement_callback(uint8_t integer, uint8_t decimal)
 /* Shell                                                                      */
 /******************************************************************************/
 #ifdef CONFIG_SHELL
+#ifdef CONFIG_BLUEGRASS
 static int shell_decommission(const struct shell *shell, size_t argc,
 			      char **argv)
 {
@@ -774,6 +782,7 @@ static int shell_decommission(const struct shell *shell, size_t argc,
 
 	return 0;
 }
+#endif
 
 #ifdef CONFIG_REBOOT
 static int shell_reboot(const struct shell *shell, size_t argc, char **argv)
@@ -801,8 +810,10 @@ static int shell_bootloader(const struct shell *shell, size_t argc, char **argv)
 #ifdef CONFIG_SHELL
 SHELL_STATIC_SUBCMD_SET_CREATE(
 	oob_cmds,
+#ifdef CONFIG_BLUEGRASS
 	SHELL_CMD(reset, NULL, "Factory reset (decommission) device",
 		  shell_decommission),
+#endif
 #ifdef CONFIG_REBOOT
 	SHELL_CMD(reboot, NULL, "Reboot module", shell_reboot),
 	SHELL_CMD(bootloader, NULL, "Boot to UART bootloader",

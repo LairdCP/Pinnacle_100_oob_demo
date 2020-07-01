@@ -6,7 +6,6 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-#ifdef CONFIG_LAIRDCONNECTIVITY_BLR
 
 #include <logging/log.h>
 #define LOG_LEVEL LOG_LEVEL_INF
@@ -178,7 +177,8 @@ void bootloader_fetch(void)
 
 		status = BlrPubQuery(
 			BOOTLOADER_STORAGE_INDEX_BOOTLOADER_UPDATES_APPLIED, 0,
-			0, (uint8_t *)&value16, sizeof(value16), NULL, NULL, NULL);
+			0, (uint8_t *)&value16, sizeof(value16), NULL, NULL,
+			NULL);
 		if (status == BOOTLOADER_STORAGE_CODE_SUCCESS) {
 			ubs_set_bootloader_updates_applied(value16);
 		}
@@ -237,8 +237,8 @@ void bootloader_fetch(void)
 		memset(&timestamp, 0, sizeof(timestamp));
 
 		status = BlrPubQuery(BOOTLOADER_STORAGE_INDEX_BUILD_DATE, 0, 0,
-				     (uint8_t *)&timestamp, TIMESTAMP_FIELD_SIZE,
-				     NULL, NULL, NULL);
+				     (uint8_t *)&timestamp,
+				     TIMESTAMP_FIELD_SIZE, NULL, NULL, NULL);
 		if (status == BOOTLOADER_STORAGE_CODE_SUCCESS &&
 		    timestamp != TIMESTAMP_INVALID_MIN &&
 		    timestamp != TIMESTAMP_INVALID_MAX) {
@@ -255,5 +255,3 @@ void bootloader_fetch(void)
 		ubs_set_error_code(value8);
 	}
 }
-
-#endif /* CONFIG_LAIRDCONNECTIVITY_BLR */
