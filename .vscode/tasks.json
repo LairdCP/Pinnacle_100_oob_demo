@@ -6,10 +6,7 @@
     "options": {
       "shell": {
         "executable": "cmd.exe",
-        "args": [
-          "/d",
-          "/c"
-        ]
+        "args": ["/d", "/c"]
       }
     }
   },
@@ -17,9 +14,9 @@
     {
       "label": "build",
       "type": "shell",
-      "command": "west build -b pinnacle_100_dvk -d ${workspaceRoot}/build ${workspaceRoot}/oob_demo",
+      "command": "west build -b pinnacle_100_dvk -d ${workspaceFolder}/build/oob_demo_aws ${workspaceFolder}/oob_demo",
       "windows": {
-        "command": "west build -b pinnacle_100_dvk -d ${workspaceRoot}\\build ${workspaceRoot}\\oob_demo"
+        "command": "west build -b pinnacle_100_dvk -d ${workspaceFolder}\\build\\oob_demo_aws ${workspaceFolder}\\oob_demo"
       },
       "problemMatcher": {
         "base": "$gcc",
@@ -29,9 +26,9 @@
     {
       "label": "re-build",
       "type": "shell",
-      "command": "west build -p -b pinnacle_100_dvk -d ${workspaceRoot}/build ${workspaceRoot}/oob_demo",
+      "command": "west build -p -b pinnacle_100_dvk -d ${workspaceFolder}/build/oob_demo_aws ${workspaceFolder}/oob_demo",
       "windows": {
-        "command": "west build -p -b pinnacle_100_dvk -d ${workspaceRoot}\\build ${workspaceRoot}\\oob_demo"
+        "command": "west build -p -b pinnacle_100_dvk -d ${workspaceFolder}\\build\\oob_demo_aws ${workspaceFolder}\\oob_demo"
       },
       "problemMatcher": {
         "base": "$gcc",
@@ -39,47 +36,47 @@
       }
     },
     {
-      "label": "flash application",
+      "label": "flash app",
       "type": "shell",
-      "command": "west flash -d ${workspaceRoot}/build",
+      "command": "west flash -d ${workspaceFolder}/build/${input:app}",
       "windows": {
-        "command": "west flash -d ${workspaceRoot}\\build"
+        "command": "west flash -d ${workspaceFolder}\\build\\${input:app}"
       },
       "problemMatcher": []
     },
     {
-      "label": "clean",
+      "label": "clean app",
       "type": "shell",
-      "command": "west build -t clean -d ${workspaceRoot}/build",
+      "command": "west build -t clean -d ${workspaceFolder}/build/${input:app}",
       "windows": {
-        "command": "west build -t clean -d ${workspaceRoot}\\build"
+        "command": "west build -t clean -d ${workspaceFolder}\\build\\${input:app}"
       },
       "problemMatcher": []
     },
     {
-      "label": "pristine",
+      "label": "pristine app",
       "type": "shell",
-      "command": "west build -t pristine -d ${workspaceRoot}/build",
+      "command": "west build -t pristine -d ${workspaceFolder}/build/${input:app}",
       "windows": {
-        "command": "west build -t pristine -d ${workspaceRoot}\\build"
+        "command": "west build -t pristine -d ${workspaceFolder}\\build\\${input:app}"
       },
       "problemMatcher": []
     },
     {
       "label": "menuconfig",
       "type": "shell",
-      "command": "west build -t menuconfig",
+      "command": "west build -t menuconfig -d ${workspaceFolder}/build/${input:app} ${workspaceFolder}/oob_demo",
       "windows": {
-        "command": "west build -t menuconfig"
+        "command": "west build -t menuconfig -d ${workspaceFolder}\\build\\${input:app} ${workspaceFolder}\\oob_demo"
       },
       "problemMatcher": []
     },
     {
-      "label": "build-lwm2m",
+      "label": "build lwm2m",
       "type": "shell",
-      "command": "west build -b pinnacle_100_dvk -d ${workspaceRoot}/build ${workspaceRoot}/oob_demo -- -DCONF_FILE=\"${workspaceRoot}/oob_demo/prj.conf ${workspaceRoot}/oob_demo/overlay_lwm2m_dtls.conf\"",
+      "command": "west build -b pinnacle_100_dvk -d ${workspaceFolder}/build/oob_demo_lwm2m ${workspaceFolder}/oob_demo -- -DCONF_FILE=\"${config:app_lwm2m_config_unix}\"",
       "windows": {
-        "command": "west build -b pinnacle_100_dvk -d ${workspaceRoot}\\build ${workspaceRoot}\\oob_demo -- -DCONF_FILE=\"${workspaceRoot}\\oob_demo\\prj.conf ${workspaceRoot}\\oob_demo\\overlay_lwm2m_dtls.conf\""
+        "command": "west build -b pinnacle_100_dvk -d ${workspaceFolder}\\build\\oob_demo_lwm2m ${workspaceFolder}\\oob_demo -- -DCONF_FILE=\"${config:app_lwm2m_config_windows\""
       },
       "problemMatcher": {
         "base": "$gcc",
@@ -87,29 +84,29 @@
       }
     },
     {
-      "label": "ramreport",
+      "label": "app ram_report",
       "type": "shell",
-      "command": "west build -d build ${workspaceRoot}/oob_demo --target ram_report > ${workspaceRoot}/build/ram_report",
+      "command": "west build -d ${workspaceFolder}/build/${input:app} ${workspaceFolder}/oob_demo --target ram_report > ${workspaceFolder}/build/${input:app}/ram_report",
       "windows": {
-        "command": "west build -d build ${workspaceRoot}\\oob_demo --target ram_report > ${workspaceRoot}\\build\\ram_report"
+        "command": "west build -d ${workspaceFolder}\\build\\${input:app} ${workspaceFolder}\\oob_demo --target ram_report > ${workspaceFolder}\\build\\${input:app}\\ram_report"
       },
       "problemMatcher": []
     },
     {
-      "label": "romreport",
+      "label": "app rom_report",
       "type": "shell",
-      "command": "west build -d build ${workspaceRoot}/oob_demo --target rom_report > ${workspaceRoot}/build/rom_report",
+      "command": "west build -d ${workspaceFolder}/build/${input:app} ${workspaceFolder}/oob_demo --target rom_report > ${workspaceFolder}/build/${input:app}/rom_report",
       "windows": {
-        "command": "west build -d build ${workspaceRoot}\\oob_demo --target rom_report > ${workspaceRoot}\\build\\rom_report"
+        "command": "west build -d ${workspaceFolder}\\build\\${input:app} ${workspaceFolder}\\oob_demo --target rom_report > ${workspaceFolder}\\build\\${input:app}\\rom_report"
       },
       "problemMatcher": []
     },
     {
-      "label": "build-with-mcumgr",
+      "label": "build for mcuboot",
       "type": "shell",
-      "command": "west build -b pinnacle_100_dvk -d ${workspaceRoot}/build ${workspaceRoot}/oob_demo -- -DCONF_FILE=\"${workspaceRoot}/oob_demo/prj.conf ${workspaceRoot}/../modules/zephyr_lib/mcumgr_wrapper/config/overlay-qspi-bt.conf ${workspaceRoot}/../modules/zephyr_lib/mcumgr_wrapper/config/overlay-lfs.conf\"",
+      "command": "west build -b pinnacle_100_dvk -d ${workspaceFolder}/build/oob_demo_aws ${workspaceFolder}/oob_demo -- -DCONF_FILE=\"${config:app_aws_config_unix} ${config:app_mcuboot_config_unix}\"",
       "windows": {
-        "command": "west build -b pinnacle_100_dvk -d ${workspaceRoot}\\build ${workspaceRoot}\\oob_demo -- -DCONF_FILE=\"${workspaceRoot}\\oob_demo\\prj.conf ${workspaceRoot}\\..\\modules\\zephyr_lib\\mcumgr_wrapper\\config\\overlay-qspi-bt.conf ${workspaceRoot}\\..\\modules\\zephyr_lib\\mcumgr_wrapper\\config\\overlay-lfs.conf\""
+        "command": "west build -b pinnacle_100_dvk -d ${workspaceFolder}\\build\\oob_demo_aws ${workspaceFolder}\\oob_demo -- -DCONF_FILE=\"${config:app_aws_config_windows} ${config:app_mcuboot_config_windows}\""
       },
       "problemMatcher": {
         "base": "$gcc",
@@ -117,11 +114,23 @@
       }
     },
     {
-      "label": "build-mcuboot",
+      "label": "build lwm2m for mcuboot",
       "type": "shell",
-      "command": "west build -b pinnacle_100_dvk -d ${workspaceRoot}/build_mcuboot ${workspaceRoot}/../bootloader/mcuboot/boot/zephyr -- -DCONF_FILE=\"${workspaceRoot}/../modules/zephyr_lib/mcuboot_config/mcuboot-qspi.conf ${workspaceRoot}/../modules/zephyr_lib/mcuboot_config/overlay-disable-hl7800-modem.conf\"",
+      "command": "west build -b pinnacle_100_dvk -d ${workspaceFolder}/build/oob_demo_lwm2m ${workspaceFolder}/oob_demo -- -DCONF_FILE=\"${config:app_lwm2m_config_unix} ${config:app_mcuboot_config_unix}\"",
       "windows": {
-        "command": "west build -b pinnacle_100_dvk -d ${workspaceRoot}\\build_mcuboot ${workspaceRoot}\\..\\bootloader\\mcuboot\\boot\\zephyr -- -DCONF_FILE=\"${workspaceRoot}\\..\\modules\\zephyr_lib\\mcuboot_config\\mcuboot-qspi.conf ${workspaceRoot}\\..\\modules\\zephyr_lib\\mcuboot_config\\overlay-disable-hl7800-modem.conf\""
+        "command": "west build -b pinnacle_100_dvk -d ${workspaceFolder}\\build\\oob_demo_lwm2m ${workspaceFolder}\\oob_demo -- -DCONF_FILE=\"${config:app_lwm2m_config_windows} ${config:app_mcuboot_config_windows}\""
+      },
+      "problemMatcher": {
+        "base": "$gcc",
+        "fileLocation": "absolute"
+      }
+    },
+    {
+      "label": "build mcuboot",
+      "type": "shell",
+      "command": "west build -b pinnacle_100_dvk -d ${workspaceFolder}/build/mcuboot ${workspaceFolder}/../bootloader/mcuboot/boot/zephyr -- -DCONF_FILE=\"${config:mcuboot_config_unix}\"",
+      "windows": {
+        "command": "west build -b pinnacle_100_dvk -d ${workspaceFolder}\\build\\mcuboot ${workspaceFolder}\\..\\bootloader\\mcuboot\\boot\\zephyr -- -DCONF_FILE=\"${config:mcuboot_config_windows}\""
       },
       "problemMatcher": {
         "base": "$gcc",
@@ -131,41 +140,110 @@
     {
       "label": "flash mcuboot",
       "type": "shell",
-      "command": "west flash --skip-rebuild -d build_mcuboot",
+      "command": "west flash -d ${workspaceFolder}/build/mcuboot",
       "windows": {
-        "command": "west flash --skip-rebuild -d ${workspaceRoot}\\build_mcuboot"
+        "command": "west flash -d ${workspaceFolder}\\build\\mcuboot"
       },
       "problemMatcher": []
     },
-    // add version to signing
     {
-      "label": "sign",
+      "label": "sign app",
       "type": "shell",
-      "command": "west sign -d ${workspaceRoot}/build -t imgtool -- --key ${workspaceRoot}/../bootloader/mcuboot/root-rsa-2048.pem",
+      "command": "west sign -t imgtool -d ${workspaceFolder}/build/${input:app} -- --key ${workspaceFolder}/../bootloader/mcuboot/root-rsa-2048.pem --version ${input:app_ver}",
       "windows": {
-        "command": "west sign -d ${workspaceRoot}\\build -t imgtool -- --key ${workspaceRoot}\\..\\bootloader\\mcuboot\\root-rsa-2048.pem"
+        "command": "west sign -t imgtool -d ${workspaceFolder}\\build\\${input:app} -- --key ${workspaceFolder}\\..\\bootloader\\mcuboot\\root-rsa-2048.pem --version ${input:app_ver}"
       },
       "problemMatcher": []
     },
     {
-      "label": "flash signed",
+      "label": "flash signed app",
       "type": "shell",
-      "command": "west flash --skip-rebuild -d ${workspaceRoot}/build_mcuboot --hex-file ${workspaceRoot}/build/zephyr/zephyr.signed.hex",
+      "command": "west flash --skip-rebuild -d ${workspaceFolder}/build/${input:app} --hex-file ${workspaceFolder}/build/${input:app}/zephyr/zephyr.signed.hex",
       "windows": {
-        "command": "west flash --skip-rebuild -d ${workspaceRoot}\\build --hex-file ${workspaceRoot}\\build\\zephyr\\zephyr.signed.hex"
+        "command": "west flash --skip-rebuild -d ${workspaceFolder}\\build\\${input:app} --hex-file ${workspaceFolder}\\build\\${input:app}\\zephyr\\zephyr.signed.hex"
       },
       "problemMatcher": []
     },
     {
-      "label": "build sign flash",
+      "label": "aws - build sign flash",
       "type": "shell",
       "dependsOrder": "sequence",
-      "dependsOn": [
-        "build-with-mcumgr",
-        "sign",
-        "flash signed"
-      ],
+      "dependsOn": ["build for mcuboot", "sign app", "flash signed app"],
       "problemMatcher": []
+    },
+    {
+      "label": "lwm2m - build sign flash",
+      "type": "shell",
+      "dependsOrder": "sequence",
+      "dependsOn": ["build lwm2m for mcuboot", "sign app", "flash signed app"],
+      "problemMatcher": []
+    },
+    {
+      "label": "mcumgr upload signed app",
+      "type": "shell",
+      "command": "sudo mcumgr ${input:mcumgr_cnx} image upload ${workspaceFolder}/build/${input:app}/zephyr/zephyr.signed.bin",
+      "problemMatcher": []
+    },
+    {
+      "label": "mcumgr list images",
+      "type": "shell",
+      "command": "sudo mcumgr ${input:mcumgr_cnx} image list",
+      "problemMatcher": []
+    },
+    {
+      "label": "mcumgr test image",
+      "type": "shell",
+      "command": "sudo mcumgr ${input:mcumgr_cnx} image test ${input:image-hash}",
+      "problemMatcher": []
+    },
+    {
+      "label": "mcumgr reset",
+      "type": "shell",
+      "command": "sudo mcumgr ${input:mcumgr_cnx} reset",
+      "problemMatcher": []
+    },
+    {
+      "label": "mcumgr confirm",
+      "type": "shell",
+      "command": "sudo mcumgr ${input:mcumgr_cnx} image confirm",
+      "problemMatcher": []
+    },
+    {
+      "label": "mcumgr echo",
+      "type": "shell",
+      "command": "sudo mcumgr ${input:mcumgr_cnx} echo 'hello'",
+      "problemMatcher": []
+    }
+  ],
+  "inputs": [
+    {
+      "id": "app",
+      "description": "Select an app",
+      "default": "oob_demo_aws",
+      "type": "pickString",
+      "options": ["oob_demo_aws", "oob_demo_lwm2m"]
+    },
+    {
+      "id": "mcumgr_cnx",
+      "description": "mcumgr connection params",
+      "type": "pickString",
+      "options": [
+        // Change 'peer_name=' to match your device name
+        "--conntype ble --connstring ctlr_name=hci0,peer_name='Pinnacle 100 OOB-0303848'",
+        // Change 'dev=' to match your serial device
+        "--conntype serial --connstring dev=/dev/tty.usbserial-A908JLEI"
+      ]
+    },
+    {
+      "id": "image-hash",
+      "description": "hash of firmware image",
+      "type": "promptString",
+      "default": "enter hash here"
+    },
+    {
+      "id": "app_ver",
+      "description": "firmware version",
+      "type": "promptString"
     }
   ]
 }

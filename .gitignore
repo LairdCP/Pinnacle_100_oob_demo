@@ -3,4 +3,3 @@
 *.nul.old
 .west/
 build/
-build_mcuboot/
