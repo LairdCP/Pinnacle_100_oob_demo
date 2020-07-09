@@ -238,15 +238,19 @@ static ssize_t write_credential(struct bt_conn *conn,
 
 	AWS_SVC_LOG_DBG(
 		"Writing cred to 0x%08x, offset 0x%04x, len: %d, cred offset 0x%08x",
-		(uint32_t)value, offset, len, credOffset);
+		(uint32_t)value, offset, (len - AWS_CREDENTIAL_HEADER_SIZE),
+		credOffset);
 
 	if (offset == 0) {
 		/* This was not a long write.
         *  skip first 4 bytes of data (address offest) and adjust
         *  length by 4 bytes */
-		memcpy(value + offset + credOffset, data + 4, len - 4);
+		memcpy(value + offset + credOffset,
+		       (data + AWS_CREDENTIAL_HEADER_SIZE),
+		       (len - AWS_CREDENTIAL_HEADER_SIZE));
 		/* null terminate the value that was written */
-		*(value + offset + credOffset + (len - 4)) = 0;
+		*(value + offset + credOffset +
+		  (len - AWS_CREDENTIAL_HEADER_SIZE)) = 0;
 
 	} else {
 		/* This was a long write, the data did not contain a credOffset */

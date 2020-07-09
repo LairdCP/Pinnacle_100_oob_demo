@@ -14,9 +14,9 @@
     {
       "label": "build",
       "type": "shell",
-      "command": "west build -b pinnacle_100_dvk -d ${workspaceFolder}/build/oob_demo_aws ${workspaceFolder}/oob_demo",
+      "command": "west build -b pinnacle_100_dvk -d ${workspaceRoot}/build/oob_demo_aws ${workspaceRoot}/oob_demo",
       "windows": {
-        "command": "west build -b pinnacle_100_dvk -d ${workspaceFolder}\\build\\oob_demo_aws ${workspaceFolder}\\oob_demo"
+        "command": "west build -b pinnacle_100_dvk -d ${workspaceRoot}\\build\\oob_demo_aws ${workspaceRoot}\\oob_demo"
       },
       "problemMatcher": {
         "base": "$gcc",
@@ -26,9 +26,9 @@
     {
       "label": "re-build",
       "type": "shell",
-      "command": "west build -p -b pinnacle_100_dvk -d ${workspaceFolder}/build/oob_demo_aws ${workspaceFolder}/oob_demo",
+      "command": "west build -p -b pinnacle_100_dvk -d ${workspaceRoot}/build/oob_demo_aws ${workspaceRoot}/oob_demo",
       "windows": {
-        "command": "west build -p -b pinnacle_100_dvk -d ${workspaceFolder}\\build\\oob_demo_aws ${workspaceFolder}\\oob_demo"
+        "command": "west build -p -b pinnacle_100_dvk -d ${workspaceRoot}\\build\\oob_demo_aws ${workspaceRoot}\\oob_demo"
       },
       "problemMatcher": {
         "base": "$gcc",
@@ -38,45 +38,45 @@
     {
       "label": "flash app",
       "type": "shell",
-      "command": "west flash -d ${workspaceFolder}/build/${input:app}",
+      "command": "west flash -d ${workspaceRoot}/build/${input:app}",
       "windows": {
-        "command": "west flash -d ${workspaceFolder}\\build\\${input:app}"
+        "command": "west flash -d ${workspaceRoot}\\build\\${input:app}"
       },
       "problemMatcher": []
     },
     {
       "label": "clean app",
       "type": "shell",
-      "command": "west build -t clean -d ${workspaceFolder}/build/${input:app}",
+      "command": "west build -t clean -d ${workspaceRoot}/build/${input:app}",
       "windows": {
-        "command": "west build -t clean -d ${workspaceFolder}\\build\\${input:app}"
+        "command": "west build -t clean -d ${workspaceRoot}\\build\\${input:app}"
       },
       "problemMatcher": []
     },
     {
       "label": "pristine app",
       "type": "shell",
-      "command": "west build -t pristine -d ${workspaceFolder}/build/${input:app}",
+      "command": "west build -t pristine -d ${workspaceRoot}/build/${input:app}",
       "windows": {
-        "command": "west build -t pristine -d ${workspaceFolder}\\build\\${input:app}"
+        "command": "west build -t pristine -d ${workspaceRoot}\\build\\${input:app}"
       },
       "problemMatcher": []
     },
     {
       "label": "menuconfig",
       "type": "shell",
-      "command": "west build -t menuconfig -d ${workspaceFolder}/build/${input:app} ${workspaceFolder}/oob_demo",
+      "command": "west build -t menuconfig -d ${workspaceRoot}/build/${input:app} ${workspaceRoot}/oob_demo",
       "windows": {
-        "command": "west build -t menuconfig -d ${workspaceFolder}\\build\\${input:app} ${workspaceFolder}\\oob_demo"
+        "command": "west build -t menuconfig -d ${workspaceRoot}\\build\\${input:app} ${workspaceRoot}\\oob_demo"
       },
       "problemMatcher": []
     },
     {
       "label": "build lwm2m",
       "type": "shell",
-      "command": "west build -b pinnacle_100_dvk -d ${workspaceFolder}/build/oob_demo_lwm2m ${workspaceFolder}/oob_demo -- -DCONF_FILE=\"${config:app_lwm2m_config_unix}\"",
+      "command": "west build -b pinnacle_100_dvk -d ${workspaceRoot}/build/oob_demo_lwm2m ${workspaceRoot}/oob_demo -- -DCONF_FILE=\"${config:app_lwm2m_config_unix}\"",
       "windows": {
-        "command": "west build -b pinnacle_100_dvk -d ${workspaceFolder}\\build\\oob_demo_lwm2m ${workspaceFolder}\\oob_demo -- -DCONF_FILE=\"${config:app_lwm2m_config_windows\""
+        "command": "west build -b pinnacle_100_dvk -d ${workspaceRoot}\\build\\oob_demo_lwm2m ${workspaceRoot}\\oob_demo -- -DCONF_FILE=\"${config:app_lwm2m_config_windows\""
       },
       "problemMatcher": {
         "base": "$gcc",
@@ -86,27 +86,27 @@
     {
       "label": "app ram_report",
       "type": "shell",
-      "command": "west build -d ${workspaceFolder}/build/${input:app} ${workspaceFolder}/oob_demo --target ram_report > ${workspaceFolder}/build/${input:app}/ram_report",
+      "command": "west build -d ${workspaceRoot}/build/${input:app} ${workspaceRoot}/oob_demo --target ram_report > ${workspaceRoot}/build/${input:app}/ram_report",
       "windows": {
-        "command": "west build -d ${workspaceFolder}\\build\\${input:app} ${workspaceFolder}\\oob_demo --target ram_report > ${workspaceFolder}\\build\\${input:app}\\ram_report"
+        "command": "west build -d ${workspaceRoot}\\build\\${input:app} ${workspaceRoot}\\oob_demo --target ram_report > ${workspaceRoot}\\build\\${input:app}\\ram_report"
       },
       "problemMatcher": []
     },
     {
       "label": "app rom_report",
       "type": "shell",
-      "command": "west build -d ${workspaceFolder}/build/${input:app} ${workspaceFolder}/oob_demo --target rom_report > ${workspaceFolder}/build/${input:app}/rom_report",
+      "command": "west build -d ${workspaceRoot}/build/${input:app} ${workspaceRoot}/oob_demo --target rom_report > ${workspaceRoot}/build/${input:app}/rom_report",
       "windows": {
-        "command": "west build -d ${workspaceFolder}\\build\\${input:app} ${workspaceFolder}\\oob_demo --target rom_report > ${workspaceFolder}\\build\\${input:app}\\rom_report"
+        "command": "west build -d ${workspaceRoot}\\build\\${input:app} ${workspaceRoot}\\oob_demo --target rom_report > ${workspaceRoot}\\build\\${input:app}\\rom_report"
       },
       "problemMatcher": []
     },
     {
       "label": "build for mcuboot",
       "type": "shell",
-      "command": "west build -b pinnacle_100_dvk -d ${workspaceFolder}/build/oob_demo_aws ${workspaceFolder}/oob_demo -- -DCONF_FILE=\"${config:app_aws_config_unix} ${config:app_mcuboot_config_unix}\"",
+      "command": "west build -b pinnacle_100_dvk -d ${workspaceRoot}/build/oob_demo_aws ${workspaceRoot}/oob_demo -- -DCONF_FILE=\"${config:app_aws_config_unix} ${config:app_mcuboot_config_unix}\"",
       "windows": {
-        "command": "west build -b pinnacle_100_dvk -d ${workspaceFolder}\\build\\oob_demo_aws ${workspaceFolder}\\oob_demo -- -DCONF_FILE=\"${config:app_aws_config_windows} ${config:app_mcuboot_config_windows}\""
+        "command": "west build -b pinnacle_100_dvk -d ${workspaceRoot}\\build\\oob_demo_aws ${workspaceRoot}\\oob_demo -- -DCONF_FILE=\"${config:app_aws_config_windows} ${config:app_mcuboot_config_windows}\""
       },
       "problemMatcher": {
         "base": "$gcc",
@@ -116,9 +116,9 @@
     {
       "label": "build lwm2m for mcuboot",
       "type": "shell",
-      "command": "west build -b pinnacle_100_dvk -d ${workspaceFolder}/build/oob_demo_lwm2m ${workspaceFolder}/oob_demo -- -DCONF_FILE=\"${config:app_lwm2m_config_unix} ${config:app_mcuboot_config_unix}\"",
+      "command": "west build -b pinnacle_100_dvk -d ${workspaceRoot}/build/oob_demo_lwm2m ${workspaceRoot}/oob_demo -- -DCONF_FILE=\"${config:app_lwm2m_config_unix} ${config:app_mcuboot_config_unix}\"",
       "windows": {
-        "command": "west build -b pinnacle_100_dvk -d ${workspaceFolder}\\build\\oob_demo_lwm2m ${workspaceFolder}\\oob_demo -- -DCONF_FILE=\"${config:app_lwm2m_config_windows} ${config:app_mcuboot_config_windows}\""
+        "command": "west build -b pinnacle_100_dvk -d ${workspaceRoot}\\build\\oob_demo_lwm2m ${workspaceRoot}\\oob_demo -- -DCONF_FILE=\"${config:app_lwm2m_config_windows} ${config:app_mcuboot_config_windows}\""
       },
       "problemMatcher": {
         "base": "$gcc",
@@ -128,9 +128,9 @@
     {
       "label": "build mcuboot",
       "type": "shell",
-      "command": "west build -b pinnacle_100_dvk -d ${workspaceFolder}/build/mcuboot ${workspaceFolder}/../bootloader/mcuboot/boot/zephyr -- -DCONF_FILE=\"${config:mcuboot_config_unix}\"",
+      "command": "west build -b pinnacle_100_dvk -d ${workspaceRoot}/build/mcuboot ${workspaceRoot}/../bootloader/mcuboot/boot/zephyr -- -DCONF_FILE=\"${config:mcuboot_config_unix}\"",
       "windows": {
-        "command": "west build -b pinnacle_100_dvk -d ${workspaceFolder}\\build\\mcuboot ${workspaceFolder}\\..\\bootloader\\mcuboot\\boot\\zephyr -- -DCONF_FILE=\"${config:mcuboot_config_windows}\""
+        "command": "west build -b pinnacle_100_dvk -d ${workspaceRoot}\\build\\mcuboot ${workspaceRoot}\\..\\bootloader\\mcuboot\\boot\\zephyr -- -DCONF_FILE=\"${config:mcuboot_config_windows}\""
       },
       "problemMatcher": {
         "base": "$gcc",
@@ -140,36 +140,36 @@
     {
       "label": "flash mcuboot",
       "type": "shell",
-      "command": "west flash -d ${workspaceFolder}/build/mcuboot",
+      "command": "west flash -d ${workspaceRoot}/build/mcuboot",
       "windows": {
-        "command": "west flash -d ${workspaceFolder}\\build\\mcuboot"
+        "command": "west flash -d ${workspaceRoot}\\build\\mcuboot"
       },
       "problemMatcher": []
     },
     {
       "label": "sign app",
       "type": "shell",
-      "command": "west sign -t imgtool -d ${workspaceFolder}/build/${input:app} -- --key ${workspaceFolder}/../bootloader/mcuboot/root-rsa-2048.pem --version ${input:app_ver}",
+      "command": "west sign -t imgtool -d ${workspaceRoot}/build/${input:app} -- --key ${workspaceRoot}/../bootloader/mcuboot/root-rsa-2048.pem --version ${input:app_ver}",
       "windows": {
-        "command": "west sign -t imgtool -d ${workspaceFolder}\\build\\${input:app} -- --key ${workspaceFolder}\\..\\bootloader\\mcuboot\\root-rsa-2048.pem --version ${input:app_ver}"
+        "command": "west sign -t imgtool -d ${workspaceRoot}\\build\\${input:app} -- --key ${workspaceRoot}\\..\\bootloader\\mcuboot\\root-rsa-2048.pem --version ${input:app_ver}"
       },
       "problemMatcher": []
     },
     {
       "label": "create app image",
       "type": "shell",
-      "command": "west sign -t imgtool -d ${workspaceFolder}/build/${input:app} -- --version ${input:app_ver}",
+      "command": "west sign -t imgtool -d ${workspaceRoot}/build/${input:app} -- --version ${input:app_ver}",
       "windows": {
-        "command": "west sign -t imgtool -d ${workspaceFolder}\\build\\${input:app} -- --version ${input:app_ver}"
+        "command": "west sign -t imgtool -d ${workspaceRoot}\\build\\${input:app} -- --version ${input:app_ver}"
       },
       "problemMatcher": []
     },
     {
       "label": "flash signed app",
       "type": "shell",
-      "command": "west flash --skip-rebuild -d ${workspaceFolder}/build/${input:app} --hex-file ${workspaceFolder}/build/${input:app}/zephyr/zephyr.signed.hex",
+      "command": "west flash --skip-rebuild -d ${workspaceRoot}/build/${input:app} --hex-file ${workspaceRoot}/build/${input:app}/zephyr/zephyr.signed.hex",
       "windows": {
-        "command": "west flash --skip-rebuild -d ${workspaceFolder}\\build\\${input:app} --hex-file ${workspaceFolder}\\build\\${input:app}\\zephyr\\zephyr.signed.hex"
+        "command": "west flash --skip-rebuild -d ${workspaceRoot}\\build\\${input:app} --hex-file ${workspaceRoot}\\build\\${input:app}\\zephyr\\zephyr.signed.hex"
       },
       "problemMatcher": []
     },
@@ -212,7 +212,7 @@
     {
       "label": "mcumgr upload signed app",
       "type": "shell",
-      "command": "sudo mcumgr ${input:mcumgr_cnx} image upload ${workspaceFolder}/build/${input:app}/zephyr/zephyr.signed.bin",
+      "command": "sudo mcumgr ${input:mcumgr_cnx} image upload ${workspaceRoot}/build/${input:app}/zephyr/zephyr.signed.bin",
       "problemMatcher": []
     },
     {

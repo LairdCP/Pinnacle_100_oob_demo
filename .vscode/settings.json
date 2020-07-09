@@ -1,12 +1,12 @@
 {
-    "app_aws_config_unix": "${workspaceFolder}/oob_demo/prj.conf",
-    "app_aws_config_windows": "${workspaceFolder}\\oob_demo\\prj.conf",
-    "app_lwm2m_config_unix": "${workspaceFolder}/oob_demo/prj.conf ${workspaceFolder}/oob_demo/overlay_lwm2m_dtls.conf",
-    "app_lwm2m_config_windows": "${workspaceFolder}\\oob_demo\\prj.conf ${workspaceFolder}\\oob_demo\\overlay_lwm2m_dtls.conf",
-    "mcuboot_config_unix": "${workspaceFolder}/../modules/zephyr_lib/mcuboot_config/mcuboot-qspi.conf ${workspaceFolder}/../modules/zephyr_lib/mcuboot_config/overlay-disable-hl7800-modem.conf ${workspaceFolder}/../modules/zephyr_lib/mcuboot_config/mcuboot-serial-pinnacle100_dvk.conf ${workspaceFolder}/../modules/zephyr_lib/mcuboot_config/disable-signature-check.conf",
-    "mcuboot_config_windows": "${workspaceFolder}\\..\\modules\\zephyr_lib\\mcuboot_config\\mcuboot-qspi.conf ${workspaceFolder}\\..\\modules\\zephyr_lib\\mcuboot_config\\overlay-disable-hl7800-modem.conf ${workspaceFolder}\\..\\modules\\zephyr_lib\\mcuboot_config\\mcuboot-serial-pinnacle100_dvk.conf ${workspaceFolder}\\..\\modules\\zephyr_lib\\mcuboot_config\\disable-signature-check.conf",
-    "app_mcuboot_config_unix": "${workspaceFolder}/../modules/zephyr_lib/mcumgr_wrapper/config/overlay-qspi-bt.conf ${workspaceFolder}/../modules/zephyr_lib/mcumgr_wrapper/config/overlay-lfs.conf",
-    "app_mcuboot_config_windows": "${workspaceFolder}\\..\\modules\\zephyr_lib\\mcumgr_wrapper\\config\\overlay-qspi-bt.conf ${workspaceFolder}\\..\\modules\\zephyr_lib\\mcumgr_wrapper\\config\\overlay-lfs.conf",
+    "app_aws_config_unix": "${workspaceRoot}/oob_demo/prj.conf",
+    "app_aws_config_windows": "${workspaceRoot}\\oob_demo\\prj.conf",
+    "app_lwm2m_config_unix": "${workspaceRoot}/oob_demo/prj.conf ${workspaceRoot}/oob_demo/overlay_lwm2m_dtls.conf",
+    "app_lwm2m_config_windows": "${workspaceRoot}\\oob_demo\\prj.conf ${workspaceRoot}\\oob_demo\\overlay_lwm2m_dtls.conf",
+    "mcuboot_config_unix": "${workspaceRoot}/../modules/zephyr_lib/mcuboot_config/mcuboot-qspi.conf ${workspaceRoot}/../modules/zephyr_lib/mcuboot_config/overlay-disable-hl7800-modem.conf ${workspaceRoot}/../modules/zephyr_lib/mcuboot_config/mcuboot-serial-pinnacle100_dvk.conf ${workspaceRoot}/../modules/zephyr_lib/mcuboot_config/disable-signature-check.conf",
+    "mcuboot_config_windows": "${workspaceRoot}\\..\\modules\\zephyr_lib\\mcuboot_config\\mcuboot-qspi.conf ${workspaceRoot}\\..\\modules\\zephyr_lib\\mcuboot_config\\overlay-disable-hl7800-modem.conf ${workspaceRoot}\\..\\modules\\zephyr_lib\\mcuboot_config\\mcuboot-serial-pinnacle100_dvk.conf ${workspaceRoot}\\..\\modules\\zephyr_lib\\mcuboot_config\\disable-signature-check.conf",
+    "app_mcuboot_config_unix": "${workspaceRoot}/../modules/zephyr_lib/mcumgr_wrapper/config/overlay-qspi-bt.conf ${workspaceRoot}/../modules/zephyr_lib/mcumgr_wrapper/config/overlay-lfs.conf",
+    "app_mcuboot_config_windows": "${workspaceRoot}\\..\\modules\\zephyr_lib\\mcumgr_wrapper\\config\\overlay-qspi-bt.conf ${workspaceRoot}\\..\\modules\\zephyr_lib\\mcumgr_wrapper\\config\\overlay-lfs.conf",
     "C_Cpp.errorSquiggles": "Disabled",
     "cmake.configureOnOpen": false
 }
