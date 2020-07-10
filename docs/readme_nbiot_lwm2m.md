@@ -6,7 +6,10 @@
 2. **[Resources](#resources)**
 3. **[Prerequisites](#prerequisites)**
 4. **[Setup](#setup)**
-5. **[Using the Demo](#using-the-demo)**
+5. **[Using the Demo](#using-the-demo)**  
+   [Auto Commissioning](#auto-commissioning)  
+   [Manual Commissioning](#manual-commissioning)  
+   [View Cloud Data](#view-cloud-data)  
 6. **[User Defined Server](#user-defined-server)**
 7. **[LED behavior](#led-behavior)**
 8. **[Development](#development)**
@@ -82,6 +85,18 @@ To set up the demo, follow these steps:
 ## Using the Demo
 If the Laird Connectivity Leshan server is used, then the Pinnacle 100 should be configured to something other than its default settings. This allows multiple Pinnacle 100 devices to connect to the same server.
 
+### Auto Commissioning
+
+1. Open the mobile app, connect to your device and go to the LwM2M Settings page.
+2. Click the Auto-commission device button.  This will automatically add the Pinnacle 100 as a unique device to the Leshan LwM2M server.
+
+![Auto-commission device](images/lwm2m_auto_commission.png)  
+_Auto-commission device_
+
+3. Skip to [View Cloud Data](#view-cloud-data) for instuctions on interacting with your device.
+
+### Manual Commissioning
+
 1. Open [Laird Connectivity Leshan web page](http://uwterminalx.lairdconnect.com:8080/#/clients).
 2. Go to the Security page.
 3. Press "Add new client configuration".
@@ -105,14 +120,16 @@ _IMEI_
 8. Set and save the Client ID using the mobile app (don't reuse a name that is already present on the server).
 9. Put the same name into the Identity field on the web page.
 
-![LwM2M settings](images/app_lwm2m_settings.png)  
+![LwM2M settings](images/lwm2m_manual_commission.png)  
 _LwM2M settings_
 
 ![Leshan device config](images/leshan_device_config.png)  
 _Leshan device config_
 
 10. Reset the modem using the mobile app (Power Settings page) or reset button (SW5 NRF_RESET).
-11. From the [clients page](http://uwterminalx.lairdconnect.com:8080/#/clients), click on your device once it is connected to interact with it.
+
+### View Cloud Data
+From the [clients page](http://uwterminalx.lairdconnect.com:8080/#/clients), click on your device once it is connected to interact with it.
   * Make sure to set the Response Timeout to something greater than 5s at the top of the page. 
 
 ![Leshan response timeout](images/leshan_response_timeout.png)  
