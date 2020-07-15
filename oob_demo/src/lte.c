@@ -28,10 +28,18 @@ LOG_MODULE_REGISTER(oob_lte);
 
 #include <drivers/modem/hl7800.h>
 #include "ble_cellular_service.h"
+#include "fota.h"
 #include "led_configuration.h"
 #include "qrtc.h"
 
 #include "lte.h"
+
+/******************************************************************************/
+/* Global Data Definitions                                                    */
+/******************************************************************************/
+#ifdef CONFIG_BLUEGRASS
+extern bool initShadow;
+#endif
 
 /******************************************************************************/
 /* Local Constant, Macro and Type Definitions                                 */
@@ -271,6 +279,22 @@ static void modemEventCallback(enum mdm_hl7800_event event, void *event_data)
 
 	case HL7800_EVENT_ACTIVE_BANDS:
 		cell_svc_set_active_bands((char *)event_data);
+		break;
+
+	case HL7800_EVENT_FOTA_STATE:
+		fota_state_handler(*((uint8_t *)event_data));
+		break;
+
+	case HL7800_EVENT_FOTA_COUNT:
+		fota_set_count(*((uint32_t *)event_data));
+		break;
+
+	case HL7800_EVENT_REVISION:
+		cell_svc_set_fw_ver((char *)event_data);
+#ifdef CONFIG_BLUEGRASS
+		/* Update shadow because modem version has changed. */
+		initShadow = true;
+#endif
 		break;
 
 	default:

@@ -44,12 +44,13 @@ LOG_MODULE_REGISTER(oob_main);
 #include "string_util.h"
 #include "app_version.h"
 #include "bt_scan.h"
+#include "fota.h"
 
-#if CONFIG_BL654_SENSOR
+#ifdef CONFIG_BL654_SENSOR
 #include "bl654_sensor.h"
 #endif
 
-#if CONFIG_BLUEGRASS
+#ifdef CONFIG_BLUEGRASS
 #include "aws.h"
 #include "bluegrass.h"
 #endif
@@ -84,6 +85,13 @@ enum APP_ERROR {
 typedef void (*app_state_function_t)(void);
 
 /******************************************************************************/
+/* Global Data Definitions                                                    */
+/******************************************************************************/
+#ifdef CONFIG_BLUEGRASS
+bool initShadow = true; /* can be set by lte */
+#endif
+
+/******************************************************************************/
 /* Local Data Definitions                                                     */
 /******************************************************************************/
 K_SEM_DEFINE(lte_ready_sem, 0, 1);
@@ -91,7 +99,6 @@ K_SEM_DEFINE(rx_cert_sem, 0, 1);
 
 #ifdef CONFIG_BLUEGRASS
 static struct k_timer awsKeepAliveTimer;
-static bool initShadow = true;
 static bool resolveAwsServer = true;
 static bool allowCommissioning = false;
 static bool devCertSet;
@@ -108,7 +115,7 @@ struct lte_status *lteInfo;
 K_MSGQ_DEFINE(cloudQ, FWK_QUEUE_ENTRY_SIZE, CONFIG_CLOUD_QUEUE_SIZE,
 	      FWK_QUEUE_ALIGNMENT);
 
-#if CONFIG_SCAN_FOR_BT510
+#ifdef CONFIG_SCAN_FOR_BT510
 /* Sensor events are not received properly unless filter duplicates is OFF */
 static struct bt_le_scan_param scanParameters =
 	BT_LE_SCAN_PARAM_INIT(BT_LE_SCAN_TYPE_ACTIVE, BT_LE_SCAN_OPT_NONE,
@@ -190,7 +197,7 @@ void main(void)
 	lteInfo = lteGetStatus();
 
 	/* init AWS */
-#if CONFIG_BLUEGRASS
+#ifdef CONFIG_BLUEGRASS
 	rc = awsInit();
 	if (rc != 0) {
 		goto exit;
@@ -204,15 +211,15 @@ void main(void)
 	initializeBle(lteInfo->IMEI);
 	single_peripheral_initialize();
 
-#if CONFIG_SCAN_FOR_BT510
+#ifdef CONFIG_SCAN_FOR_BT510
 	bt_scan_set_parameters(&scanParameters);
 #endif
 
-#if CONFIG_BL654_SENSOR
+#ifdef CONFIG_BL654_SENSOR
 	bl654_sensor_initialize();
 #endif
 
-#if CONFIG_BLUEGRASS
+#ifdef CONFIG_BLUEGRASS
 	Bluegrass_Initialize(cloudMsgReceiver.pQueue);
 #endif
 
@@ -225,6 +232,8 @@ void main(void)
 	cell_svc_set_iccid(lteInfo->ICCID);
 	cell_svc_set_serial_number(lteInfo->serialNumber);
 
+	fota_init();
+
 	/* Setup the power service */
 	power_svc_init();
 	power_init();
@@ -233,7 +242,7 @@ void main(void)
 	bootloader_init();
 #endif
 
-#if CONFIG_BLUEGRASS
+#ifdef CONFIG_BLUEGRASS
 	rc = aws_svc_init(lteInfo->IMEI);
 	if (rc != 0) {
 		goto exit;
@@ -259,7 +268,7 @@ void main(void)
 	mcumgr_wrapper_register_subsystems();
 #endif
 
-#if CONFIG_PRINT_THREAD_LIST
+#ifdef CONFIG_PRINT_THREAD_LIST
 	print_thread_list();
 #endif
 
@@ -286,7 +295,7 @@ EXTERNED void Framework_AssertionHandler(char *file, int line)
 			log_strdup(k_thread_name_get(k_current_get())));
 	}
 
-#if CONFIG_LAIRD_CONNECTIVITY_DEBUG
+#ifdef CONFIG_LAIRD_CONNECTIVITY_DEBUG
 	/* breakpoint location */
 	volatile bool wait = true;
 	while (wait)
@@ -854,7 +863,7 @@ static int shell_send_at_cmd(const struct shell *shell, size_t argc,
 SHELL_CMD_REGISTER(at, NULL, "Send an AT command string to the HL7800",
 		   shell_send_at_cmd);
 
-#if CONFIG_PRINT_THREAD_LIST
+#ifdef CONFIG_PRINT_THREAD_LIST
 static int print_thread_cmd(const struct shell *shell, size_t argc, char **argv)
 {
 	print_thread_list();

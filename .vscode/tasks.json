@@ -102,6 +102,30 @@
       "problemMatcher": []
     },
     {
+      "label": "build with mcumgr",
+      "type": "shell",
+      "command": "west build -b pinnacle_100_dvk -d ${workspaceRoot}/build/oob_demo_aws ${workspaceRoot}/oob_demo -- -DCONF_FILE=\"${config:app_aws_config_unix} ${config:app_mcumgr_config_unix}\"",
+      "windows": {
+        "command": "west build -b pinnacle_100_dvk -d ${workspaceRoot}\\build\\oob_demo_aws ${workspaceRoot}\\oob_demo -- -DCONF_FILE=\"${config:app_aws_config_windows} ${config:app_mcumgr_config_windows}\""
+      },
+      "problemMatcher": {
+        "base": "$gcc",
+        "fileLocation": "absolute"
+      }
+    },
+    {
+      "label": "build with mcumgr serial",
+      "type": "shell",
+      "command": "west build -b pinnacle_100_dvk -d ${workspaceRoot}/build/oob_demo_aws ${workspaceRoot}/oob_demo -- -DCONF_FILE=\"${config:app_aws_config_unix} ${config:app_mcumgr_serial_config_unix}\"",
+      "windows": {
+        "command": "west build -b pinnacle_100_dvk -d ${workspaceRoot}\\build\\oob_demo_aws ${workspaceRoot}\\oob_demo -- -DCONF_FILE=\"${config:app_aws_config_windows} ${config:app_mcumgr_serial_config_windows}\""
+      },
+      "problemMatcher": {
+        "base": "$gcc",
+        "fileLocation": "absolute"
+      }
+    },
+    {
       "label": "build for mcuboot",
       "type": "shell",
       "command": "west build -b pinnacle_100_dvk -d ${workspaceRoot}/build/oob_demo_aws ${workspaceRoot}/oob_demo -- -DCONF_FILE=\"${config:app_aws_config_unix} ${config:app_mcuboot_config_unix}\"",
