@@ -76,7 +76,7 @@
       "type": "shell",
       "command": "west build -b pinnacle_100_dvk -d ${workspaceRoot}/build/oob_demo_lwm2m ${workspaceRoot}/oob_demo -- -DCONF_FILE=\"${config:app_lwm2m_config_unix}\"",
       "windows": {
-        "command": "west build -b pinnacle_100_dvk -d ${workspaceRoot}\\build\\oob_demo_lwm2m ${workspaceRoot}\\oob_demo -- -DCONF_FILE=\"${config:app_lwm2m_config_windows\""
+        "command": "west build -b pinnacle_100_dvk -d ${workspaceRoot}\\build\\oob_demo_lwm2m ${workspaceRoot}\\oob_demo -- -DCONF_FILE=\"${config:app_lwm2m_config_windows}\""
       },
       "problemMatcher": {
         "base": "$gcc",

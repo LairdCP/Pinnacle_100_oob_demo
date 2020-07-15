@@ -43,6 +43,7 @@ LOG_MODULE_REGISTER(oob_main);
 #include "print_thread.h"
 #include "string_util.h"
 #include "app_version.h"
+#include "bt_scan.h"
 
 #if CONFIG_BL654_SENSOR
 #include "bl654_sensor.h"
@@ -106,6 +107,14 @@ struct lte_status *lteInfo;
 
 K_MSGQ_DEFINE(cloudQ, FWK_QUEUE_ENTRY_SIZE, CONFIG_CLOUD_QUEUE_SIZE,
 	      FWK_QUEUE_ALIGNMENT);
+
+#if CONFIG_SCAN_FOR_BT510
+/* Sensor events are not received properly unless filter duplicates is OFF */
+static struct bt_le_scan_param scanParameters =
+	BT_LE_SCAN_PARAM_INIT(BT_LE_SCAN_TYPE_ACTIVE, BT_LE_SCAN_OPT_NONE,
+			      BT_GAP_SCAN_FAST_INTERVAL,
+			      BT_GAP_SCAN_FAST_WINDOW);
+#endif
 
 /******************************************************************************/
 /* Local Function Prototypes                                                  */
@@ -194,6 +203,10 @@ void main(void)
 
 	initializeBle(lteInfo->IMEI);
 	single_peripheral_initialize();
+
+#if CONFIG_SCAN_FOR_BT510
+	bt_scan_set_parameters(&scanParameters);
+#endif
 
 #if CONFIG_BL654_SENSOR
 	bl654_sensor_initialize();
