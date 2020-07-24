@@ -384,15 +384,15 @@ static DispatchResult_t ResponseHandler(FwkMsgReceiver_t *pMsgRxer,
 	FwkBufMsg_t *pRsp = (FwkBufMsg_t *)pMsg;
 	bool ok = (strstr(pRsp->buffer, SENSOR_CMD_ACCEPTED_SUB_STR) != NULL);
 	if (ok) {
-		if (pObj->pCmdMsg->resetRequest) {
+		if (pObj->pCmdMsg->setEpochRequest) {
+			pObj->pCmdMsg->setEpochRequest = false;
+			SendSetEpochCommand();
+		} else if (pObj->pCmdMsg->resetRequest) {
 			pObj->pCmdMsg->resetRequest = false;
 			/* Don't block this task because it also processes adverts */
 			k_timer_start(&pObj->resetTimer,
 				      BT510_WRITE_TO_RESET_DELAY_TICKS,
 				      K_NO_WAIT);
-		} else if (pObj->pCmdMsg->setEpochRequest) {
-			pObj->pCmdMsg->setEpochRequest = false;
-			SendSetEpochCommand();
 		} else {
 			pObj->configComplete = true;
 			if (pObj->pCmdMsg->dumpRequest) {
@@ -417,13 +417,14 @@ static DispatchResult_t ResponseHandler(FwkMsgReceiver_t *pMsgRxer,
 
 static void SendSetEpochCommand(void)
 {
-	size_t length = strlen(SENSOR_CMD_SET_EPOCH_FMT_STR) +
-			SENSOR_CMD_MAX_EPOCH_SIZE + 1;
-	char *buf = BufferPool_Take(length + 1);
+	size_t maxSize = strlen(SENSOR_CMD_SET_EPOCH_FMT_STR) +
+			 SENSOR_CMD_MAX_EPOCH_SIZE + 1;
+	char *buf = BufferPool_Take(maxSize);
 	if (buf != NULL) {
-		snprintk(buf, length, SENSOR_CMD_SET_EPOCH_FMT_STR,
-			 Qrtc_GetEpoch());
+		uint32_t epoch = Qrtc_GetEpoch();
+		snprintk(buf, maxSize, SENSOR_CMD_SET_EPOCH_FMT_STR, epoch);
 		WriteString(buf);
+		LOG_DBG("%u", epoch);
 	}
 }
 

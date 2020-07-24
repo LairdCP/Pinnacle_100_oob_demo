@@ -45,7 +45,7 @@ const char SENSOR_CMD_SET_CONFIG_VERSION_1[] =
 	"{\"jsonrpc\":\"2.0\",\"method\":\"set\",\"id\":5,\"params\":{\"activeMode\":1,\"scale\":2,\"odr\":5,\"activationThreshold\":8,\"temperatureSenseInterval\":120,\"batterySenseInterval\":3600,\"configVersion\":1}}";
 
 const char SENSOR_CMD_SET_EPOCH_FMT_STR[] =
-	"{\"jsonrpc\": \"2.0\", \"method\": \"setEpoch\", \"params\": [%u], \"id\": 6}";
+	"{\"jsonrpc\":\"2.0\",\"method\":\"setEpoch\",\"params\":[%u],\"id\":6}";
 
 /******************************************************************************/
 /* Global Function Definitions                                                */
