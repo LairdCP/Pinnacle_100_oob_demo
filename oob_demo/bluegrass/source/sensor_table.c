@@ -295,6 +295,13 @@ DispatchResult_t SensorTable_AddConfigRequest(SensorCmdMsg_t *pMsg)
 
 	SensorEntry_t *p = &sensorTable[i];
 
+	if (p->rsp.firmwareVersionMajor >=
+	    BT510_MAJOR_VERSION_RESET_NOT_REQUIRED) {
+		pMsg->resetRequest = false;
+	} else {
+		pMsg->resetRequest = SensorCmd_RequiresReset(pMsg->cmd);
+	}
+
 	if ((pMsg->configVersion != p->rsp.configVersion) ||
 	    pMsg->dumpRequest) {
 		/* If AWS sends a second config message while the first
@@ -1297,7 +1304,6 @@ static void CreateConfigRequest(SensorEntry_t *pEntry)
 		strncpy(pMsg->addrString, pEntry->addrString,
 			SENSOR_ADDR_STR_LEN);
 		strcpy(pMsg->cmd, pCmd);
-		pMsg->resetRequest = SensorCmd_RequiresReset(pMsg->cmd);
 		FRAMEWORK_MSG_SEND(pMsg);
 	}
 }
