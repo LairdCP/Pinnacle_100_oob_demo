@@ -128,9 +128,9 @@
     {
       "label": "build for mcuboot",
       "type": "shell",
-      "command": "west build -b pinnacle_100_dvk -d ${workspaceRoot}/build/oob_demo_aws ${workspaceRoot}/oob_demo -- -DCONF_FILE=\"${config:app_aws_config_unix} ${config:app_mcuboot_config_unix}\"",
+      "command": "${config:setup_static_partitions_unix} && west build -b pinnacle_100_dvk -d ${workspaceRoot}/build/oob_demo_aws ${workspaceRoot}/oob_demo -- -DCONF_FILE=\"${config:app_aws_config_unix} ${config:app_mcuboot_config_unix}\" -Dmcuboot_CONF_FILE=\"${config:mcuboot_config_unix}\"",
       "windows": {
-        "command": "west build -b pinnacle_100_dvk -d ${workspaceRoot}\\build\\oob_demo_aws ${workspaceRoot}\\oob_demo -- -DCONF_FILE=\"${config:app_aws_config_windows} ${config:app_mcuboot_config_windows}\""
+        "command": "${config:setup_static_partitions_windows} && west build -b pinnacle_100_dvk -d ${workspaceRoot}\\build\\oob_demo_aws ${workspaceRoot}\\oob_demo -- -DCONF_FILE=\"${config:app_aws_config_windows} ${config:app_mcuboot_config_windows}\" -Dmcuboot_CONF_FILE=\"${config:mcuboot_config_windows}\""
       },
       "problemMatcher": {
         "base": "$gcc",
@@ -140,9 +140,9 @@
     {
       "label": "build lwm2m for mcuboot",
       "type": "shell",
-      "command": "west build -b pinnacle_100_dvk -d ${workspaceRoot}/build/oob_demo_lwm2m ${workspaceRoot}/oob_demo -- -DCONF_FILE=\"${config:app_lwm2m_config_unix} ${config:app_mcuboot_config_unix}\"",
+      "command": "${config:setup_static_partitions_unix} && west build -b pinnacle_100_dvk -d ${workspaceRoot}/build/oob_demo_lwm2m ${workspaceRoot}/oob_demo -- -DCONF_FILE=\"${config:app_lwm2m_config_unix} ${config:app_mcuboot_config_unix}\" -Dmcuboot_CONF_FILE=\"${config:mcuboot_config_unix}\"",
       "windows": {
-        "command": "west build -b pinnacle_100_dvk -d ${workspaceRoot}\\build\\oob_demo_lwm2m ${workspaceRoot}\\oob_demo -- -DCONF_FILE=\"${config:app_lwm2m_config_windows} ${config:app_mcuboot_config_windows}\""
+        "command": "${config:setup_static_partitions_windows} && west build -b pinnacle_100_dvk -d ${workspaceRoot}\\build\\oob_demo_lwm2m ${workspaceRoot}\\oob_demo -- -DCONF_FILE=\"${config:app_lwm2m_config_windows} ${config:app_mcuboot_config_windows}\" -Dmcuboot_CONF_FILE=\"${config:mcuboot_config_windows}\""
       },
       "problemMatcher": {
         "base": "$gcc",
