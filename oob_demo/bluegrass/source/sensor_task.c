@@ -87,7 +87,14 @@ typedef struct SensorTask {
 	struct k_timer sensorTick;
 	uint32_t fifoTicks;
 	int scanUserId;
+	uint32_t configDisconnects;
 } SensorTaskObj_t;
+
+/* A connection is not created unless 1M is disabled. */
+#define BT_CONN_CODED_CREATE_CONN                                              \
+	BT_CONN_LE_CREATE_PARAM(BT_CONN_LE_OPT_CODED | BT_CONN_LE_OPT_NO_1M,   \
+				BT_GAP_SCAN_FAST_INTERVAL,                     \
+				BT_GAP_SCAN_FAST_INTERVAL)
 
 /******************************************************************************/
 /* Local Data Definitions                                                     */
@@ -500,7 +507,9 @@ static DispatchResult_t ConnectRequestMsgHandler(FwkMsgReceiver_t *pMsgRxer,
 		pObj->resetSent = false;
 		pObj->configComplete = false;
 		err = bt_conn_le_create(&pObj->pCmdMsg->addr,
-					BT_CONN_LE_CREATE_CONN,
+					pObj->pCmdMsg->useCodedPhy ?
+						BT_CONN_CODED_CREATE_CONN :
+						BT_CONN_LE_CREATE_CONN,
 					BT_LE_CONN_PARAM_DEFAULT, &pObj->conn);
 
 		LOG_INF("Connection Request (%u): '%s' (%s) %x-%u",
@@ -541,6 +550,7 @@ static DispatchResult_t DisconnectMsgHandler(FwkMsgReceiver_t *pMsgRxer,
 	} else {
 		LOG_ERR("'%s' NOT configured", name);
 		(void)RetryConfigRequest(pObj);
+		pObj->configDisconnects += 1;
 	}
 
 	bt_conn_unref(pObj->conn);
@@ -961,7 +971,8 @@ static void SensorTaskAdvHandler(const bt_addr_le_t *addr, int8_t rssi,
 		pMsg->type = type;
 		pMsg->ad.len = ad->len;
 		memcpy(&pMsg->addr, addr, sizeof(bt_addr_le_t));
-		memcpy(pMsg->ad.data, ad->data, MIN(MAX_AD_SIZE, ad->len));
+		memcpy(pMsg->ad.data, ad->data,
+		       MIN(CONFIG_SENSOR_MAX_AD_SIZE, ad->len));
 		FRAMEWORK_MSG_SEND(pMsg);
 	}
 }
