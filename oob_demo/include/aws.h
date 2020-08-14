@@ -62,6 +62,7 @@ static const unsigned char aws_root_ca[] =
 #define APP_MQTT_BUFFER_SIZE 1024
 
 #define DEFAULT_MQTT_CLIENTID "pinnacle100_oob"
+#define AWS_MQTT_ID_MAX_SIZE 128
 
 #define SHADOW_STATE_NULL "{\"state\":null}"
 
