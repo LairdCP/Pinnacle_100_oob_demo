@@ -76,7 +76,7 @@ X                                X
 
 The following are required to use the Pinnacle 100 Out of Box demo:
 
-- An activated SIM card. See [here](Truphone_SIM_Set_Up.pdf) for instructions on activating the SIM card that came with your dev kit.
+- An activated SIM card. See [here](https://connectivity-staging.s3.us-east-2.amazonaws.com/2020-08/CS-AN-Truphone%20SIM%20Set%20Up%20v1_1.pdf) for instructions on activating the SIM card that came with your dev kit.
 - Pinnacle 100 DVK programmed with LTE-M/AWS out of box demo firmware. Releases available [here!](https://github.com/LairdCP/Pinnacle_100_oob_demo/releases)
 - Laird Pinnacle Connect app installed on a mobile device
   - [Android app](http://play.google.com/store/apps/details?id=com.lairdconnect.pinnacle.connect)
@@ -104,7 +104,7 @@ _Sign-up and Login screens_
 
 Once logged in, the scan screen displays.
 
-![Scan screen](images/scan.png)<br>
+![Scan screen](images/scan.png)  
 _Scan screen_
 
 To scan for devices, follow these steps:
