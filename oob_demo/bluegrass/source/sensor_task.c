@@ -46,6 +46,13 @@ LOG_MODULE_REGISTER(sensor_task);
 #define SENSOR_TASK_QUEUE_DEPTH 32
 #endif
 
+/** Limit the amount of space in the queue that can be used for processing
+ * advertisements.
+ */
+#ifndef SENSOR_TASK_MAX_OUTSTANDING_ADS
+#define SENSOR_TASK_MAX_OUTSTANDING_ADS (SENSOR_TASK_QUEUE_DEPTH / 2)
+#endif
+
 /** This is the timer rate for how often the AWS state is checked */
 #ifndef AWS_FIFO_CHECK_RATE_SECONDS
 #define AWS_FIFO_CHECK_RATE_SECONDS 10
@@ -88,6 +95,9 @@ typedef struct SensorTask {
 	uint32_t fifoTicks;
 	int scanUserId;
 	uint32_t configDisconnects;
+	uint32_t adsProcessed;
+	atomic_t adsOutstanding; /* incremented in BT RX thread context */
+	atomic_t adsDropped; /* incremented in BT RX thread context */
 } SensorTaskObj_t;
 
 /* A connection is not created unless 1M is disabled. */
@@ -309,10 +319,20 @@ static void SensorTaskThread(void *pArg1, void *pArg2, void *pArg3)
 DispatchResult_t AdvertisementMsgHandler(FwkMsgReceiver_t *pMsgRxer,
 					 FwkMsg_t *pMsg)
 {
-	UNUSED_PARAMETER(pMsgRxer);
 	AdvMsg_t *pAdvMsg = (AdvMsg_t *)pMsg;
 	SensorTable_AdvertisementHandler(&pAdvMsg->addr, pAdvMsg->rssi,
 					 pAdvMsg->type, &pAdvMsg->ad);
+
+	SensorTaskObj_t *pObj = FWK_TASK_CONTAINER(SensorTaskObj_t);
+	pObj->adsProcessed += 1;
+	atomic_dec(&pObj->adsOutstanding);
+	/* Attempt to limit prints when busy. */
+	if (atomic_get(&pObj->adsOutstanding) == 0) {
+		if (atomic_get(&pObj->adsDropped) > 0) {
+			atomic_val_t dropped = atomic_clear(&pObj->adsDropped);
+			LOG_WRN("%u advertisements dropped", dropped);
+		}
+	}
 	return DISPATCH_OK;
 }
 
@@ -527,7 +547,8 @@ static DispatchResult_t ConnectRequestMsgHandler(FwkMsgReceiver_t *pMsgRxer,
 			 * for the next ad.  This is because the stack does not
 			 * provide a timeout for this condition.
 			 * (state == BT_CONN_CONNECT_SCAN)
-			 * Bug 16483: Zephyr 2.x - Retest connection timeout fix (stack) */
+			 * Bug 16483: Zephyr 2.x - Retest connection timeout fix (stack)
+			 */
 			k_timer_start(&pObj->msgTask.timer,
 				      CONNECTION_TIMEOUT_TICKS, K_NO_WAIT);
 			return DISPATCH_DO_NOT_FREE;
@@ -640,7 +661,8 @@ static int WriteString(const char *str)
 	int status = 0;
 	ST_LOG_DEV("length: %u", remaining);
 	/* Chunk data to the size that the link supports.
-	 * Zephyr handles flow control */
+	 * Zephyr handles flow control
+	 */
 	while ((remaining > 0) && (status == BT_SUCCESS)) {
 		size_t chunk = MIN(st.mtu, remaining);
 		remaining -= chunk;
@@ -655,7 +677,8 @@ static int WriteString(const char *str)
 static int StartDiscovery(void)
 {
 	/* There isn't any reason to discover the VSP service.
-	 * The callback doesn't give a range of handles for service discovery. */
+	 * The callback doesn't give a range of handles for service discovery.
+	 */
 	st.dp.uuid = (struct bt_uuid *)&VSP_RX_UUID;
 	st.dp.func = DiscoveryCallback;
 	st.dp.start_handle = FIRST_VALID_HANDLE;
@@ -680,7 +703,8 @@ static int RequestDisconnect(SensorTaskObj_t *pObj, const char *str)
 }
 
 /* Put the request back in to the table (because something failed during
- * attempt to write configuration. */
+ * attempt to write configuration.
+ */
 static DispatchResult_t RetryConfigRequest(SensorTaskObj_t *pObj)
 {
 	FRAMEWORK_ASSERT(pObj->pCmdMsg != NULL);
@@ -956,9 +980,16 @@ static void SensorTaskAdvHandler(const bt_addr_le_t *addr, int8_t rssi,
 				 uint8_t type, struct net_buf_simple *ad)
 {
 	/* After filtering for BT510 sensors, send a message so we can
-	process ads in Sensor Task context.
-	This prevents the BLE RX task from being blocked. */
+	 * process ads in Sensor Task context.
+	 * This prevents the BLE RX task from being blocked.
+	 */
 	if (SensorTable_MatchBt510(ad)) {
+		if (atomic_get(&st.adsOutstanding) >
+		    SENSOR_TASK_MAX_OUTSTANDING_ADS) {
+			atomic_inc(&st.adsDropped);
+			return;
+		}
+
 		AdvMsg_t *pMsg = BufferPool_Take(sizeof(AdvMsg_t));
 		if (pMsg == NULL) {
 			return;
@@ -974,6 +1005,7 @@ static void SensorTaskAdvHandler(const bt_addr_le_t *addr, int8_t rssi,
 		memcpy(pMsg->ad.data, ad->data,
 		       MIN(CONFIG_SENSOR_MAX_AD_SIZE, ad->len));
 		FRAMEWORK_MSG_SEND(pMsg);
+		atomic_inc(&st.adsOutstanding);
 	}
 }
 #endif
