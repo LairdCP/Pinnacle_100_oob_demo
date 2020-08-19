@@ -846,16 +846,15 @@ static uint8_t DiscoveryCallback(struct bt_conn *conn,
 
 	/* The discovery callback is used as a state machine */
 	if (bt_uuid_cmp(params->uuid, &VSP_RX_UUID.uuid) == 0) {
-		st.writeHandle = attr->handle + 1;
+		st.writeHandle = bt_gatt_attr_value_handle(attr);
 		st.dp.uuid = (struct bt_uuid *)&VSP_TX_UUID;
 		st.dp.type = BT_GATT_DISCOVER_CHARACTERISTIC;
 		Discover();
 	} else if (bt_uuid_cmp(params->uuid, &VSP_TX_UUID.uuid) == 0) {
 		st.dp.uuid = (struct bt_uuid *)&VSP_TX_CCC_UUID;
-		st.dp.start_handle = attr->handle + 2;
+		st.dp.start_handle = LBT_NEXT_HANDLE_AFTER_CHAR(attr->handle);
 		st.dp.type = BT_GATT_DISCOVER_DESCRIPTOR;
-		/* Bug 16485: Zephyr 2.x - new api - bt_gatt_attr_value_handle(attr) */
-		st.sp.value_handle = attr->handle + 1;
+		st.sp.value_handle = bt_gatt_attr_value_handle(attr);
 		Discover();
 	} else {
 		/* Check for the expected UUID when discovery is complete. */
