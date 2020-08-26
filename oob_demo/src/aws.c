@@ -111,6 +111,7 @@ static int publish_string(struct mqtt_client *client, enum mqtt_qos qos,
 static void client_init(struct mqtt_client *client);
 static int try_to_connect(struct mqtt_client *client);
 static void awsRxThread(void *arg1, void *arg2, void *arg3);
+static uint16_t rand16_nonzero_get(void);
 
 /******************************************************************************/
 /* Global Function Definitions                                                */
@@ -410,9 +411,7 @@ int awsSubscribe(uint8_t *topic, uint8_t subscribe)
 	mt.qos = MQTT_QOS_1_AT_LEAST_ONCE;
 	__ASSERT(mt.topic.size != 0, "Invalid topic");
 	struct mqtt_subscription_list list = {
-		.list = &mt,
-		.list_count = 1,
-		.message_id = (uint16_t)sys_rand32_get()
+		.list = &mt, .list_count = 1, .message_id = rand16_nonzero_get()
 	};
 	int rc = subscribe ? mqtt_subscribe(&client_ctx, &list) :
 			     mqtt_unsubscribe(&client_ctx, &list);
@@ -609,7 +608,7 @@ static int publish_string(struct mqtt_client *client, enum mqtt_qos qos,
 	param.message.topic.topic.size = strlen(param.message.topic.topic.utf8);
 	param.message.payload.data = data;
 	param.message.payload.len = strlen(param.message.payload.data);
-	param.message_id = sys_rand32_get();
+	param.message_id = rand16_nonzero_get();
 	param.dup_flag = 0U;
 	param.retain_flag = 0U;
 
@@ -712,6 +711,16 @@ static void awsRxThread(void *arg1, void *arg2, void *arg3)
 			k_sem_take(&connected_sem, K_FOREVER);
 		}
 	}
+}
+
+/* Message ID of zero is reserved as invalid. */
+static uint16_t rand16_nonzero_get(void)
+{
+	uint16_t r = 0;
+	do {
+		r = (uint16_t)sys_rand32_get();
+	} while (r == 0);
+	return r;
 }
 
 /******************************************************************************/
