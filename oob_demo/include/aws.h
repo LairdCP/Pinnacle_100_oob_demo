@@ -89,6 +89,7 @@ struct shadow_persistent_values {
 	const char *IMEI;
 	const char *ICCID;
 	const char *radio_sn;
+	bool codedPhySupported;
 };
 
 struct shadow_state_reported {
@@ -112,6 +113,8 @@ static const struct json_obj_descr shadow_persistent_values_descr[] = {
 			    JSON_TOK_STRING),
 	JSON_OBJ_DESCR_PRIM(struct shadow_persistent_values, radio_sn,
 			    JSON_TOK_STRING),
+	JSON_OBJ_DESCR_PRIM(struct shadow_persistent_values, codedPhySupported,
+			    JSON_TOK_TRUE),
 };
 
 static const struct json_obj_descr shadow_state_reported_descr[] = {
