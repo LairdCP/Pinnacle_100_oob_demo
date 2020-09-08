@@ -5,3 +5,5 @@
 build/
 
 oob_demo/*pm_static*.yml
+
+boards/

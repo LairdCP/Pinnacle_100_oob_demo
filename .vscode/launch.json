@@ -6,13 +6,12 @@
     "configurations": [
         {
             "cwd": "${workspaceRoot}",
-            "executable": "build/zephyr/zephyr.elf",
+            "executable": "build/oob_demo_aws/zephyr/zephyr.elf",
             "name": "Debug",
             "request": "launch",
             "type": "cortex-debug",
             "servertype": "jlink",
             "device": "nRF52840_xxAA",
-            "svdFile": "${workspaceRoot}/../zephyr/ext/hal/nordic/nrfx/mdk/nrf52840.svd",
             "interface": "swd"
         }
     ]
