@@ -832,8 +832,19 @@ static int shell_send_at_cmd(const struct shell *shell, size_t argc,
 	return rc;
 }
 
-static int shell_hl_fup_cmd(const struct shell *shell, size_t argc,
+static int shell_oob_ver_cmd(const struct shell *shell, size_t argc,
 			     char **argv)
+{
+	int rc = 0;
+
+	shell_print(shell, APP_VERSION_STRING);
+
+	return rc;
+}
+
+#ifdef CONFIG_MODEM_HL7800
+#ifdef CONFIG_MODEM_HL7800_FW_UPDATE
+static int shell_hl_fup_cmd(const struct shell *shell, size_t argc, char **argv)
 {
 	int rc = 0;
 
@@ -849,6 +860,46 @@ static int shell_hl_fup_cmd(const struct shell *shell, size_t argc,
 
 	return rc;
 }
+#endif /* CONFIG_MODEM_HL7800_FW_UPDATE */
+
+static int shell_hl_iccid_cmd(const struct shell *shell, size_t argc,
+			      char **argv)
+{
+	int rc = 0;
+
+	shell_print(shell, "%s", mdm_hl7800_get_iccid());
+
+	return rc;
+}
+
+static int shell_hl_imei_cmd(const struct shell *shell, size_t argc,
+			     char **argv)
+{
+	int rc = 0;
+
+	shell_print(shell, "%s", mdm_hl7800_get_imei());
+
+	return rc;
+}
+
+static int shell_hl_sn_cmd(const struct shell *shell, size_t argc, char **argv)
+{
+	int rc = 0;
+
+	shell_print(shell, "%s", mdm_hl7800_get_sn());
+
+	return rc;
+}
+
+static int shell_hl_ver_cmd(const struct shell *shell, size_t argc, char **argv)
+{
+	int rc = 0;
+
+	shell_print(shell, "%s", mdm_hl7800_get_fw_version());
+
+	return rc;
+}
+#endif /* CONFIG_MODEM_HL7800 */
 
 SHELL_STATIC_SUBCMD_SET_CREATE(oob_cmds,
 #ifdef CONFIG_BLUEGRASS
@@ -856,18 +907,26 @@ SHELL_STATIC_SUBCMD_SET_CREATE(oob_cmds,
 					 "Factory reset (decommission) device",
 					 shell_decommission),
 #endif /* CONFIG_BLUEGRASS */
+			       SHELL_CMD(ver, NULL, "Firmware version",
+					 shell_oob_ver_cmd),
 			       SHELL_SUBCMD_SET_END /* Array terminated. */
 );
 SHELL_CMD_REGISTER(oob, &oob_cmds, "OOB Demo commands", NULL);
 
+#ifdef CONFIG_MODEM_HL7800
 SHELL_STATIC_SUBCMD_SET_CREATE(
 	hl_cmds,
 	SHELL_CMD(at, NULL, "Send AT command (only for advanced debug)",
 		  shell_send_at_cmd),
-	SHELL_CMD(fup, NULL, "Update HL7800 firmware",
-		  shell_hl_fup_cmd),
+#ifdef CONFIG_MODEM_HL7800_FW_UPDATE
+	SHELL_CMD(fup, NULL, "Update HL7800 firmware", shell_hl_fup_cmd),
+#endif
+	SHELL_CMD(iccid, NULL, "HL7800 SIM card ICCID", shell_hl_iccid_cmd),
+	SHELL_CMD(imei, NULL, "HL7800 IMEI", shell_hl_imei_cmd),
+	SHELL_CMD(sn, NULL, "HL7800 serial number", shell_hl_sn_cmd),
+	SHELL_CMD(ver, NULL, "HL7800 firmware version", shell_hl_ver_cmd),
 	SHELL_SUBCMD_SET_END /* Array terminated. */
 );
 SHELL_CMD_REGISTER(hl, &hl_cmds, "HL7800 commands", NULL);
-
+#endif /* CONFIG_MODEM_HL7800 */
 #endif /* CONFIG_SHELL */
