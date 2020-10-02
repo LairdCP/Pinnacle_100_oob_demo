@@ -16,6 +16,10 @@ The OOB Demo can be compiled to work with NB-IoT and LwM2M communication to the 
 
 For more details on the LwM2M demo, [read here](docs/readme_nbiot_lwm2m.md).
 
+## Firmware Updates
+
+[Read here](docs/firmware_update.md) for instructions on how to update firmware running on the Pinnacle 100 modem.
+
 ## Development
 
 ### Cloning and Building the Source
