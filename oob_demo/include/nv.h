@@ -43,6 +43,10 @@ int nvReadAwsRootCa(uint8_t *cert, uint16_t size);
 int nvDeleteAwsRootCa(void);
 int nvInitLwm2mConfig(void *data, void *init_value, uint16_t size);
 int nvWriteLwm2mConfig(void *data, uint16_t size);
+#ifdef CONFIG_APP_AWS_CUSTOMIZATION
+int nvStoreAwsEnableCustom(bool Value);
+int nvReadAwsEnableCustom(bool *Value);
+#endif
 
 #ifdef __cplusplus
 }

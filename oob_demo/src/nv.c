@@ -37,7 +37,10 @@ enum SETTING_ID {
 	SETTING_ID_AWS_ENDPOINT,
 	SETTING_ID_AWS_CLIENT_ID,
 	SETTING_ID_AWS_ROOT_CA,
-	SETTING_ID_LWM2M_CONFIG
+	SETTING_ID_LWM2M_CONFIG,
+#ifdef CONFIG_APP_AWS_CUSTOMIZATION
+	SETTING_ID_AWS_ENABLE_CUSTOM,
+#endif
 };
 
 /******************************************************************************/
@@ -79,6 +82,9 @@ int nvInit(void)
 {
 	int rc = 0;
 	struct flash_pages_info info;
+#ifdef CONFIG_APP_AWS_CUSTOMIZATION
+	bool bValue;
+#endif
 
 	/* define the nvs file system by settings with:
 	 *	sector_size equal to the pagesize,
@@ -112,6 +118,19 @@ int nvInit(void)
 			goto exit;
 		}
 	}
+
+#ifdef CONFIG_APP_AWS_CUSTOMIZATION
+	rc = nvReadAwsEnableCustom(&bValue);
+	if (rc <= 0) {
+		/* setting not found, init it */
+		rc = nvStoreAwsEnableCustom(false);
+		if (rc <= 0) {
+			NV_LOG_ERR("Could not write AWS enable custom (%d)",
+				   rc);
+			goto exit;
+		}
+	}
+#endif /* CONFIG_APP_AWS_CUSTOMIZATION */
 
 exit:
 	return rc;
@@ -209,3 +228,16 @@ int nvWriteLwm2mConfig(void *data, uint16_t size)
 {
 	return nvs_write(&fs, SETTING_ID_LWM2M_CONFIG, data, size);
 }
+
+#ifdef CONFIG_APP_AWS_CUSTOMIZATION
+int nvStoreAwsEnableCustom(bool Value)
+{
+	return nvs_write(&fs, SETTING_ID_AWS_ENABLE_CUSTOM, &Value,
+			 sizeof(bool));
+}
+
+int nvReadAwsEnableCustom(bool *Value)
+{
+	return nvs_read(&fs, SETTING_ID_AWS_ENABLE_CUSTOM, Value, sizeof(bool));
+}
+#endif /* CONFIG_APP_AWS_CUSTOMIZATION */
