@@ -25,4 +25,4 @@ void SensorTask_Initialize(void);
 }
 #endif
 
-#endif
+#endif /* __SENSOR_TASK_H__ */
