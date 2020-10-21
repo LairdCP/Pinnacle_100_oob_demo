@@ -1,5 +1,7 @@
 # Pinnacle 100 Out of Box Demo
 
+Download firmware releases from [here!](https://github.com/LairdCP/Pinnacle_100_oob_demo/releases)
+
 The Pinnacle 100 Out of Box Demo (OOB Demo) is designed to showcase gathering sensor data over BLE and transferring it to the cloud. The demo can operate in two modes:  
 * [LTE-M and AWS](#lte-m-and-aws)
 * [NB-IoT and LwM2M](#nb-iot-and-lwm2m)
