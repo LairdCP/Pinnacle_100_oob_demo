@@ -11,8 +11,9 @@
    [Manual Commissioning](#manual-commissioning)  
    [View Cloud Data](#view-cloud-data)  
 6. **[User Defined Server](#user-defined-server)**
-7. **[LED behavior](#led-behavior)**
-8. **[Development](#development)**
+7. **[LED Behavior](#led-behavior)**
+8. **[Building the Firmware](#building-the-firmware)**
+9. **[Development](#development)**
 
 ## Introduction
 
@@ -93,7 +94,7 @@ If the Laird Connectivity Leshan server is used, then the Pinnacle 100 should be
 ![Auto-commission device](images/lwm2m_auto_commission.png)  
 _Auto-commission device_
 
-3. Skip to [View Cloud Data](#view-cloud-data) for instuctions on interacting with your device.
+3. Skip to [View Cloud Data](#view-cloud-data) for instructions on interacting with your device.
 
 ### Manual Commissioning
 
@@ -148,7 +149,7 @@ _Leshan light control_
 ## User Defined Server
 In addition to the steps in the [Using the Demo](#using-the-demo) section, the Peer URL must be set using the mobile app.
 
-## LED behavior
+## LED Behavior
 
 LED1 - LED4 are on when the modem is booting.
 
@@ -158,5 +159,48 @@ The Green LED (LED2) can be controlled via the LwM2M server Light Control object
 
 The Red LED (LED3) blinks when the Pinnacle is searching for a cellular network. It remains on and does not blink when connected to a network. If there is an error with the SIM card or network registration, then the LED remains off.
 
+## Building the Firmware
+
+The firmware can be built to work with or without the mcuboot bootloader. Building without mcuboot is faster and easier for development and debug, but gives up the ability to update the Zephyr app via UART or BLE.
+
+Issue these commands **from the oob_demo directory**.
+
+Build without mcuboot:
+```
+# Linux and macOS
+
+rm -f oob_demo/pm_static.yml && west build -b pinnacle_100_dvk -d build/oob_demo_lwm2m oob_demo
+
+# Windows
+
+del oob_demo\pm_static.yml && west build -b pinnacle_100_dvk -d build\oob_demo_lwm2m oob_demo
+```
+
+> **Note:** When switching between builds with or without mcuboot, be sure to delete the build directory before building.
+
+Build with mcuboot:
+```
+# Linux and macOS
+
+cp ../modules/zephyr_lib/mcuboot_config/pm_static.pinnacle100.yml oob_demo/pm_static.yml && west build -b pinnacle_100_dvk -d build/oob_demo_lwm2m oob_demo -- -DOVERLAY_CONFIG="${PWD}/oob_demo/overlay_lwm2m_dtls.conf ${PWD}/../modules/zephyr_lib/mcumgr_wrapper/config/overlay-mcuboot.conf" -Dmcuboot_CONF_FILE="${PWD}/../modules/zephyr_lib/mcuboot_config/mcuboot-qspi.conf ${PWD}/../modules/zephyr_lib/mcuboot_config/overlay-disable-hl7800-modem.conf ${PWD}/../modules/zephyr_lib/mcuboot_config/mcuboot-serial-pinnacle100_dvk.conf ${PWD}/../modules/zephyr_lib/mcuboot_config/disable-slot0-validate.conf"
+
+# Windows
+
+copy ..\modules\zephyr_lib\mcuboot_config\pm_static.pinnacle100.yml oob_demo\pm_static.yml && west build -b pinnacle_100_dvk -d build\oob_demo_lwm2m oob_demo -- -DOVERLAY_CONFIG="%CD%\oob_demo\overlay_lwm2m_dtls.conf %CD%\..\modules\zephyr_lib\mcumgr_wrapper\config\overlay-mcuboot.conf" -Dmcuboot_CONF_FILE="%CD%\..\modules\zephyr_lib\mcuboot_config\mcuboot-qspi.conf %CD%\..\modules\zephyr_lib\mcuboot_config\overlay-disable-hl7800-modem.conf %CD%\..\modules\zephyr_lib\mcuboot_config\mcuboot-serial-pinnacle100_dvk.conf %CD%\..\modules\zephyr_lib\mcuboot_config\disable-slot0-validate.conf"
+```
+
+After building the firmware, it can be flashed with the following command:
+```
+# Linux and macOS
+
+west flash -d build/oob_demo_lwm2m
+
+# Windows
+
+west flash -d build\oob_demo_lwm2m
+```
+
+If the firmware was built with mcuboot, `west flash` will program merged.hex which contains the mcuboot bootloader and app combined.
+
 ## Development
-The LwM2M demo is built with [this overlay config file](../oob_demo/overlay_lwm2m_dtls.conf). See [here](development.md) for help on getting started with custom development.
+See [here](development.md) for help on getting started with custom development.
