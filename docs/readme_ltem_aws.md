@@ -17,8 +17,9 @@
 6. **[Cloud Data](#cloud-data)**  
    [BT510 Sensor Data](#bt510-sensor-data)  
 7. **[LED Behavior](#led-behavior)**
-8. **[Building the Firmware](#building-the-firmware)**
-9. **[Development](#development)**
+8. **[My Own AWS Connection](#my-own-aws-connection)**
+9. **[Building the Firmware](#building-the-firmware)**
+10. **[Development](#development)**
 
 ## Introduction
 
@@ -235,6 +236,10 @@ The Blue LED (LED1) blinks once a second when the Pinnacle is searching for a BL
 The Green LED (LED2) turns on when connected to AWS. When data is sent to AWS the LED turns off and then turns back on. When disconnected from AWS, the LED remains off.
 
 The Red LED (LED3) blinks when the Pinnacle is searching for a cellular network. It remains on and does not blink when connected to a network. If there is an error with the SIM card or network registration, then the LED remains off.
+
+## My Own AWS Connection
+
+If you wish to connect to your own AWS instance, [See here](aws_iot.md) for instructions.
 
 ## Building the Firmware
 
