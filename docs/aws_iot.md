@@ -12,6 +12,7 @@
    [Prerequisites](#prerequisites)  
    [Provisioning Via UART](#provisioning-via-uart)  
    [Monitor AWS Messages](#monitor-aws-messages)  
+5. **[AWS Topics](aws_topics.md)**  
 
 ## Introduction
 
