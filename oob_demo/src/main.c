@@ -44,6 +44,10 @@ LOG_MODULE_REGISTER(main);
 #include "bt_scan.h"
 #include "fota.h"
 
+#ifdef CONFIG_LCZ_NFC
+#include "laird_connectivity_nfc.h"
+#endif
+
 #ifdef CONFIG_BL654_SENSOR
 #include "bl654_sensor.h"
 #endif
@@ -264,6 +268,10 @@ void main(void)
 	/* Setup the power service */
 	power_svc_init();
 	power_init();
+
+#ifdef CONFIG_LCZ_NFC
+	laird_connectivity_nfc_init();
+#endif
 
 #ifdef CONFIG_MCUMGR
 	mcumgr_wrapper_register_subsystems();
