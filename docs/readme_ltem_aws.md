@@ -14,6 +14,7 @@
    [Device Information](#device-information)  
    [Cellular Settings](#cellular-settings)  
    [Power Settings](#power-settings)  
+   [Firmware Updates](#firmware-updates)  
 6. **[Cloud Data](#cloud-data)**  
    [BT510 Sensor Data](#bt510-sensor-data)  
 7. **[LED Behavior](#led-behavior)**
@@ -80,7 +81,7 @@ The following are required to use the Pinnacle 100 Out of Box demo:
 
 - An activated SIM card. See [here](https://www.lairdconnect.com/documentation/truphone-sim-setup-guide) for instructions on activating the SIM card that came with your kit.
 - Pinnacle 100 DVK programmed with LTE-M/AWS out of box demo firmware. Releases available [here!](https://github.com/LairdCP/Pinnacle_100_oob_demo/releases)
-- Laird Pinnacle Connect app installed on a mobile device
+- Laird Pinnacle Connect app installed on a mobile device. An active internet connection on the mobile device is required.
   - [Android app](http://play.google.com/store/apps/details?id=com.lairdconnect.pinnacle.connect)
   - [iOS app](https://apps.apple.com/us/app/laird-pinnacle-connect/id1481075861?ls=1)
 
@@ -171,6 +172,23 @@ The power settings page displays the power supply voltage and allows the user to
 
 ![Power settings](images/power_settings.png)  
 _Power settings_
+
+### Firmware Updates
+
+If the Pinnacle 100 is running firmware 3.0.0 or greater, firmware updates will be available in the app. After connecting to the Pinnacle 100 click Device Firmware Upgrade.
+
+The firmware upgrade view will fetch any available updates from the cloud. Selecting a file will enable the update button, clicking the update button will start the firmware update.
+
+When a firmware file is selected, a download icon will appear on the file to indicate that the file is currently in the cloud and not saved on the mobile device. You can click the download button to save it to the mobile device.
+The firmware update can be started without downloading the file first. During the update the file will automatically download and save to the mobile device.
+
+![Cloud file](images/fota_cloud_file.png)  
+_Cloud file_
+
+If the selected file is local on the mobile device, a delete button will be displayed. You can click it to remove the file from the mobile device.
+
+![Local file](images/fota_local_file.png)  
+_Local file_
 
 ## Cloud Data
 
