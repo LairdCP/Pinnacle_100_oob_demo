@@ -175,7 +175,11 @@ _Power settings_
 
 ### Firmware Updates
 
-If the Pinnacle 100 is running firmware 3.0.0 or greater, firmware updates will be available in the app. After connecting to the Pinnacle 100 click Device Firmware Upgrade.
+If the Pinnacle device is running firmware 3.0.0 or greater, firmware updates will be available in the mobile app or via the web UI. 
+
+#### FOTA Updates via BLE
+
+After connecting to the Pinnacle device via the mobile app, click Device Firmware Upgrade.
 
 The firmware upgrade view will fetch any available updates from the cloud. Selecting a file will enable the update button, clicking the update button will start the firmware update.
 
@@ -189,6 +193,15 @@ If the selected file is local on the mobile device, a delete button will be disp
 
 ![Local file](images/fota_local_file.png)  
 _Local file_
+
+#### FOTA Updates via the Cloud
+
+After the device has been commissioned and connected to the cloud, it can receive firmware updates from the cloud.
+
+![Cloud FOTA](images/bluegrass_fota.png)  
+_Cloud FOTA_
+
+The application firmware or HL7800 cellular firmware can be scheduled for update. Each firmware update can schedule when to download the image to the Pinnacle 100 device, and when to apply the update (switchover date).
 
 ## Cloud Data
 
