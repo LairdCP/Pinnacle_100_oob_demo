@@ -31,4 +31,72 @@ When a sensor is enabled it will subscribe to "get/accepted" and then process th
 
 Similar to the gateway, the sensor publishes its shadow to "update" and receives desired changes on the "update/delta" topic.
 
-Changes received from AWS on the "update/delta" topic are converted to JSON-RPC commands and sent to the sensor using Bluetooth. Depending on the advertising rate of the sensor, it may take some time for the command to be processed. Once a command has be accepted by the sensor, the gateway will read the configuration of the sensor and publish it to the shadow.
+Changes received from AWS on the "update/delta" topic are converted to JSON-RPC commands and sent to the sensor using Bluetooth. Depending on the advertising rate of the sensor, it may take some time for the command to be processed. Once a command has be accepted by the sensor, the gateway will read the configuration of the sensor and publish it to the sensor's shadow.
+
+## Configuring Gateway to Accept Data from a Sensor
+
+A table of sensors is created by the gateway and published to the gateway's shadow. A sensor must be enabled in this table before the gateway will publish its data. Enabling sensors is done by the Bluegrass interface but can also be done using AWS IoT.
+
+### Navigate to Gateway Shadow in AWS IoT
+
+Go to Manage -> Gateway Thing (for example, deviceId-3546090671947) -> Shadows -> Classic Shadow and then click edit.
+
+![Gateway Shadow](images/gateway_shadow.png)
+
+A list of sensors that have been seen will be part of the shadow. Each entry contains the Bluetooth Address, the epoch (time) that the sensor was last seen, and whether on not it is allowed to publish.
+
+The Bluetooth address can be found on the BT510 and is labeled BLE ID.
+
+```
+{
+	"bt510": {
+		"sensors": [
+			[
+				"Bluetooth Address",
+				Last Seen Epoch,
+				Publish
+			],
+			[
+				"DE901D27B28D",
+				1614731727,
+				true
+			],
+			[
+				"C630157769EE",
+				1614731684,
+				false
+			],
+			[
+				"DFB086DF3F7D",
+				1614731727,
+				false
+			],
+			[
+				"C7CD78B9CABB",
+				1613762866,
+				false
+			]
+		]
+	}
+}
+```
+
+### Enable Sensor
+
+Change true to false for any sensor that should have its data published.
+
+For example,
+
+```
+"desired": {
+    "bt510": {
+        "sensors": [
+            [
+                "C7CD78B9CABB",
+                1613762866,
+                true
+            ]
+        ]
+    }
+}
+```
