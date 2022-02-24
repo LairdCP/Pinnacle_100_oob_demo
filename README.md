@@ -1,6 +1,6 @@
 # Pinnacle 100 Out of Box Demo
 
-> **Note:** Not recommended for new designs. Use https://github.com/LairdCP/Pinnacle-100-Firmware.git.
+## **Note:** Not recommended for new designs. Use https://github.com/LairdCP/Pinnacle-100-Firmware-Manifest.
 
 Download firmware releases from [here!](https://github.com/LairdCP/Pinnacle_100_oob_demo/releases)
 
